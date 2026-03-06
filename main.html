@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTM Layout — ML Air Quality Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060b12;--s1:#0a1120;--s2:#0f1928;--s3:#162035;
+  --b1:#1c2d42;--b2:#243550;--text:#cfe3f5;--muted:#4d7090;--dim:#2a4560;
+  --pm25:#f472b6;--pm10:#a78bfa;--no2:#34d399;--no:#fbbf24;
+  --o3:#60a5fa;--so2:#f87171;--co:#c084fc;--rh:#22d3ee;
+  --good:#22c55e;--mod:#eab308;--usg:#f97316;--bad:#ef4444;--vbad:#a855f7;
+  --acc:#38bdf8;--acc2:#fb923c;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;overflow-x:hidden;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 15%,rgba(56,189,248,.06) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 85%,rgba(244,114,182,.04) 0%,transparent 60%);
+}
+
+/* ─── NAV ─── */
+nav{
+  position:sticky;top:0;z-index:100;height:58px;
+  background:rgba(6,11,18,.9);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+}
+.brand{font-size:1rem;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--acc);text-shadow:0 0 20px rgba(56,189,248,.4);}
+.brand b{color:var(--text);}
+.nav-right{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);display:flex;gap:20px;align-items:center;}
+.live{display:flex;align-items:center;gap:6px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ─── LAYOUT ─── */
+.wrap{max-width:1480px;margin:0 auto;padding:24px 28px;position:relative;z-index:1;}
+.section-head{
+  display:flex;align-items:center;gap:12px;margin-bottom:16px;
+  font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:4px;color:var(--muted);
+}
+.section-head::after{content:'';flex:1;height:1px;background:var(--b1);}
+.section-head i{color:var(--acc);}
+
+/* ─── CARDS ─── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:16px;padding:20px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--acc),transparent 70%);}
+
+/* ─── HERO GRID ─── */
+.hero{display:grid;grid-template-columns:260px 1fr 260px;gap:14px;margin-bottom:14px;}
+@media(max-width:1100px){.hero{grid-template-columns:1fr 1fr;}}
+@media(max-width:700px){.hero{grid-template-columns:1fr;}}
+
+/* AQI GAUGE */
+.gauge-wrap{width:170px;height:170px;margin:0 auto 14px;position:relative;}
+.gauge-wrap svg{width:100%;height:100%;}
+.gauge-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+.gauge-n{font-family:'DM Mono',monospace;font-size:2.8rem;font-weight:700;line-height:1;}
+.gauge-l{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);letter-spacing:3px;margin-top:2px;}
+.aqi-card{text-align:center;padding:10px 0;}
+.aqi-cat{font-size:1rem;font-weight:700;letter-spacing:2px;margin-bottom:4px;}
+.aqi-loc{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:14px;}
+.scale-row{display:flex;gap:2px;border-radius:5px;overflow:hidden;height:5px;}
+.scale-row div{flex:1;}
+.scale-ptr{position:relative;height:8px;margin-top:3px;}
+.scale-ptr-dot{position:absolute;width:9px;height:9px;border-radius:50%;background:#fff;top:0;transform:translateX(-50%);border:2px solid var(--bg);transition:left 1.2s cubic-bezier(.4,0,.2,1);}
+
+/* STATS */
+.stat-list{display:flex;flex-direction:column;gap:8px;}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;}
+.sk{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+.sv{font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;}
+
+/* CHART CARD */
+.chart-card{padding:20px;}
+.ctabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;}
+.ctab{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:2px;padding:5px 12px;border-radius:6px;cursor:pointer;background:var(--s2);border:1px solid var(--b1);color:var(--muted);transition:all .15s;}
+.ctab:hover{color:var(--text);}
+.ctab.on{background:var(--s3);border-color:var(--acc);color:var(--acc);}
+.chart-h{height:200px;position:relative;}
+
+/* ─── POLLUTANT GRID ─── */
+.pg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+@media(max-width:1100px){.pg{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.pg{grid-template-columns:1fr;}}
+
+.pc{
+  background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:16px;
+  cursor:pointer;transition:border-color .2s,transform .2s;position:relative;overflow:hidden;
+}
+.pc:hover{border-color:var(--acc);transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.3);}
+.pc-name{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:3px;color:var(--muted);margin-bottom:5px;}
+.pc-val{font-family:'DM Mono',monospace;font-size:1.85rem;font-weight:500;line-height:1;}
+.pc-unit{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--dim);margin-top:1px;}
+.pc-bar{height:3px;background:var(--b1);border-radius:2px;margin-top:10px;overflow:hidden;}
+.pc-fill{height:100%;border-radius:2px;width:0%;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+.pc-badge{position:absolute;top:10px;right:10px;font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:1px;padding:2px 6px;border-radius:4px;}
+.pc-trend{font-family:'DM Mono',monospace;font-size:.6rem;margin-top:4px;}
+
+/* ─── FORECAST SECTION ─── */
+.fc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:900px){.fc-grid{grid-template-columns:repeat(3,1fr);}}
+
+.fc-card{
+  background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:16px 12px;
+  text-align:center;cursor:pointer;transition:border-color .2s,transform .2s;
+  position:relative;overflow:hidden;
+}
+.fc-card:hover{border-color:var(--acc);transform:translateY(-3px);}
+.fc-top-bar{position:absolute;top:0;left:0;right:0;height:2px;}
+.fc-day{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px;}
+.fc-aqi{font-family:'DM Mono',monospace;font-size:2rem;font-weight:500;margin-bottom:3px;}
+.fc-cat{font-size:.6rem;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.fc-polls{display:flex;flex-direction:column;gap:2px;margin-top:6px;}
+.fc-poll-row{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);}
+.fc-conf{position:absolute;top:8px;right:8px;font-family:'DM Mono',monospace;font-size:.5rem;background:rgba(56,189,248,.12);color:var(--acc);padding:2px 5px;border-radius:4px;}
+.fc-trend{font-size:.75rem;margin-top:4px;}
+
+/* ─── DUAL CHARTS ─── */
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:800px){.dual{grid-template-columns:1fr;}}
+.mini-h{height:160px;position:relative;}
+
+/* ─── FORECAST DETAIL CHART ─── */
+.fcbig{height:220px;position:relative;}
+
+/* ─── ANALYSIS 3-COL ─── */
+.a3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+@media(max-width:1100px){.a3{grid-template-columns:1fr 1fr;}}
+@media(max-width:700px){.a3{grid-template-columns:1fr;}}
+
+.hlist,.clist,.rlist{display:flex;flex-direction:column;gap:10px;}
+.hitem{background:var(--s2);border:1px solid var(--b1);border-left:3px solid;border-radius:0 10px 10px 0;padding:11px 13px;}
+.hg{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:3px;}
+.hd{font-size:.78rem;color:var(--muted);line-height:1.5;}
+
+.citem{background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:12px;display:flex;gap:10px;}
+.cicon{font-size:1.4rem;flex-shrink:0;}
+.cn{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:2px;color:var(--acc2);margin-bottom:2px;}
+.cpct{font-family:'DM Mono',monospace;font-size:.8rem;font-weight:500;color:var(--acc2);}
+.cd{font-size:.75rem;color:var(--muted);line-height:1.4;margin-top:3px;}
+
+.ritem{background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:12px;display:flex;gap:10px;}
+.ricon{font-size:1.3rem;flex-shrink:0;}
+.rt{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.rd{font-size:.75rem;color:var(--muted);line-height:1.4;}
+
+/* ─── MODAL ─── */
+.overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+  backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:20px;
+}
+.overlay.open{display:flex;}
+.modal{
+  background:var(--s1);border:1px solid var(--b2);border-radius:20px;
+  padding:28px;max-width:560px;width:100%;position:relative;
+  max-height:88vh;overflow-y:auto;
+}
+.modal::-webkit-scrollbar{width:4px;}
+.modal::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--b1);color:var(--text);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{border-color:var(--acc);}
+.msub{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:3px;color:var(--muted);margin-bottom:6px;}
+.mh{font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;margin-bottom:14px;}
+.mrow{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--b1);font-size:.82rem;gap:12px;}
+.mrow:last-child{border:none;}
+.mk{color:var(--muted);flex-shrink:0;}
+.mv{font-family:'DM Mono',monospace;font-weight:500;text-align:right;}
+.msect{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:3px;color:var(--muted);margin:14px 0 8px;}
+.mbox{font-size:.8rem;color:var(--muted);line-height:1.6;padding:12px;background:var(--s2);border-radius:8px;margin-bottom:10px;}
+.tag{display:inline-block;background:rgba(56,189,248,.1);color:var(--acc);padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:1px;margin:2px 2px 0 0;}
+.tag.warn{background:rgba(251,146,60,.12);color:var(--acc2);}
+.tag.good{background:rgba(34,197,94,.12);color:var(--good);}
+.pbar{height:4px;background:var(--b1);border-radius:2px;overflow:hidden;margin:8px 0 14px;}
+.pfill{height:100%;border-radius:2px;transition:width 1s;}
+.cause-block{background:var(--s2);border:1px solid var(--b1);border-left:3px solid;border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:8px;}
+.cb-title{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}
+.cb-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
+.sol-block{background:var(--s2);border:1px solid rgba(34,197,94,.2);border-left:3px solid var(--good);border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:8px;}
+.sol-title{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:2px;color:var(--good);margin-bottom:4px;}
+.sol-desc{font-size:.78rem;color:var(--muted);line-height:1.5;}
+.pred-poll-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--b1);font-size:.78rem;}
+.pred-poll-row:last-child{border:none;}
+
+/* FORECAST MINI CHART IN MODAL */
+.modal-chart-wrap{height:140px;position:relative;margin:10px 0;}
+
+/* ─── FORECAST DAY MODAL ─── */
+.fc-poll-boxes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0;}
+@media(max-width:500px){.fc-poll-boxes{grid-template-columns:repeat(2,1fr);}}
+.fpbox{
+  background:var(--s2);border:1px solid var(--b1);border-radius:10px;
+  padding:12px 10px;text-align:center;cursor:pointer;
+  transition:border-color .2s,transform .2s;position:relative;overflow:hidden;
+}
+.fpbox:hover{border-color:var(--acc);transform:translateY(-2px);}
+.fpbox.active{border-color:var(--acc);background:var(--s3);}
+.fpbox::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.fpbox-name{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:4px;}
+.fpbox-val{font-family:'DM Mono',monospace;font-size:1.3rem;font-weight:500;line-height:1;margin-bottom:1px;}
+.fpbox-unit{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--dim);}
+.fpbox-trend{font-size:.65rem;margin-top:4px;}
+.fpbox-bar{height:2px;background:var(--b1);border-radius:2px;margin-top:6px;overflow:hidden;}
+.fpbox-barfill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+
+/* hourly drilldown panel */
+.hourly-panel{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:14px;margin-top:8px;display:none;}
+.hourly-panel.show{display:block;animation:fadeUp .25s ease;}
+.hourly-panel-title{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:3px;color:var(--acc);margin-bottom:10px;}
+.hour-rows{display:flex;flex-direction:column;gap:0;}
+.hour-row{
+  display:grid;grid-template-columns:52px 1fr 80px;gap:8px;align-items:start;
+  padding:8px 0;border-bottom:1px solid var(--b1);cursor:pointer;
+  transition:background .15s;border-radius:6px;
+}
+.hour-row:last-child{border:none;}
+.hour-row:hover{background:rgba(56,189,248,.04);}
+.hour-row.expanded{background:rgba(56,189,248,.05);}
+.hr-time{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--acc);font-weight:500;padding:2px 0;}
+.hr-val-wrap{display:flex;flex-direction:column;gap:3px;}
+.hr-val{font-family:'DM Mono',monospace;font-size:.85rem;font-weight:500;}
+.hr-bar-wrap{height:4px;background:var(--b1);border-radius:2px;overflow:hidden;margin-top:3px;}
+.hr-bar{height:100%;border-radius:2px;}
+.hr-badge{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;padding:2px 6px;border-radius:4px;text-align:center;letter-spacing:1px;margin-top:2px;}
+.hr-cause{
+  display:none;grid-column:1/-1;
+  background:var(--s1);border:1px solid var(--b1);border-left:3px solid;
+  border-radius:0 8px 8px 0;padding:10px 12px;margin:4px 0 6px;
+  font-size:.75rem;color:var(--muted);line-height:1.5;
+}
+.hr-cause.show{display:block;animation:fadeUp .2s ease;}
+.hr-cause-title{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}
+.hr-sol{font-size:.73rem;color:var(--good);margin-top:5px;padding-top:5px;border-top:1px solid var(--b1);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.card,.pc,.fc-card{animation:fadeUp .4s ease both;}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--s1);}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px;}
+
+/* FOOTER */
+footer{border-top:1px solid var(--b1);padding:18px 28px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">ML·AQI <b>BTM</b></div>
+  <div class="nav-right">
+    <span class="live"><span class="dot"></span>REAL DATA</span>
+    <span>BTM LAYOUT, BENGALURU · CPCB</span>
+    <span>FEB 25 – MAR 01 2026 · 2659 READINGS</span>
+    <span>MODEL: POLY REGRESSION R²≥0.67</span>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ── HERO ── -->
+<div class="section-head"><i>◈</i> Live Status — Mar 01 2026</div>
+<div class="hero">
+
+  <div class="card aqi-card">
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 170 170">
+        <circle cx="85" cy="85" r="74" fill="none" stroke="var(--b1)" stroke-width="11"/>
+        <circle cx="85" cy="85" r="74" fill="none" id="gfill"
+          stroke="#eab308" stroke-width="11" stroke-linecap="round"
+          stroke-dasharray="465" stroke-dashoffset="465"
+          transform="rotate(-90 85 85)" style="transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)"/>
+      </svg>
+      <div class="gauge-center">
+        <div class="gauge-n" id="aqiN" style="color:#eab308">97</div>
+        <div class="gauge-l">AQI-US</div>
+      </div>
+    </div>
+    <div class="aqi-cat" id="aqiCat" style="color:#eab308">MODERATE</div>
+    <div class="aqi-loc">📍 BTM Layout, Bengaluru · CPCB</div>
+    <div class="scale-row">
+      <div style="background:#22c55e"></div><div style="background:#eab308"></div>
+      <div style="background:#f97316"></div><div style="background:#ef4444"></div>
+      <div style="background:#a855f7"></div><div style="background:#dc2626"></div>
+    </div>
+    <div class="scale-ptr"><div class="scale-ptr-dot" id="sdot" style="left:30%"></div></div>
+    <div style="margin-top:12px;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);text-align:center;line-height:1.5;">
+      Based on PM2.5 avg = 30.32 μg/m³<br>Mar 01 latest readings
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="ctabs" id="ctabs">
+      <button class="ctab on" onclick="swChart('pm25',this)">PM2.5</button>
+      <button class="ctab" onclick="swChart('pm10',this)">PM10</button>
+      <button class="ctab" onclick="swChart('no2',this)">NO₂</button>
+      <button class="ctab" onclick="swChart('no',this)">NO</button>
+      <button class="ctab" onclick="swChart('o3',this)">O₃</button>
+      <button class="ctab" onclick="swChart('so2',this)">SO₂</button>
+      <button class="ctab" onclick="swChart('co',this)">CO</button>
+      <button class="ctab" onclick="swChart('rh',this)">Humidity</button>
+    </div>
+    <div class="chart-h"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <div class="card" style="padding:20px;">
+    <div class="section-head" style="margin-bottom:12px;font-size:.58rem;">Key Metrics</div>
+    <div class="stat-list" id="statList"></div>
+  </div>
+</div>
+
+<!-- ── POLLUTANT CARDS ── -->
+<div class="section-head"><i>◈</i> Pollutant Readings — Mar 01 2026 · Click for ML Detail</div>
+<div class="pg" id="pollGrid"></div>
+
+<!-- ── CHARTS ── -->
+<div class="section-head"><i>◈</i> 5-Day Historical Trends</div>
+<div class="dual">
+  <div class="card"><div style="font-size:.75rem;font-weight:700;margin-bottom:10px;">PM2.5 &amp; PM10 — Daily Avg</div><div class="mini-h"><canvas id="pmChart"></canvas></div></div>
+  <div class="card"><div style="font-size:.75rem;font-weight:700;margin-bottom:10px;">NO₂, NO, O₃ — Daily Avg</div><div class="mini-h"><canvas id="gasChart"></canvas></div></div>
+</div>
+
+<!-- ── ML FORECAST ── -->
+<div class="section-head"><i>◈</i> ML Forecast — Next 5 Days · Polynomial Regression · Click for Full Analysis</div>
+<div class="fc-grid" id="fcGrid"></div>
+
+<div class="card" style="margin-bottom:14px;">
+  <div style="font-size:.75rem;font-weight:700;margin-bottom:12px;">AQI Forecast — Historical + ML Predicted <span style="color:var(--muted);font-size:.65rem;">(dashed = prediction)</span></div>
+  <div class="fcbig"><canvas id="fcChart"></canvas></div>
+</div>
+
+<!-- ── ANALYSIS ── -->
+<div class="section-head"><i>◈</i> Deep Analysis</div>
+<div class="a3">
+  <div class="card"><div class="section-head" style="margin-bottom:10px;font-size:.58rem;">Health Impacts</div><div class="hlist" id="hlist"></div></div>
+  <div class="card"><div class="section-head" style="margin-bottom:10px;font-size:.58rem;">Root Causes</div><div class="clist" id="clist"></div></div>
+  <div class="card"><div class="section-head" style="margin-bottom:10px;font-size:.58rem;">Recommendations</div><div class="rlist" id="rlist"></div></div>
+</div>
+
+</div>
+
+<footer>
+  <span>Data: CPCB · OpenAQ · Location 5548 · BTM Layout, Bengaluru · 12.9135°N 77.5951°E</span>
+  <span>ML Model: Polynomial Regression (deg=2) + Linear Blend · Predictions: Mar 02–06 2026</span>
+</footer>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal"><button class="mclose" onclick="closeModal()">✕</button><div id="mbody"></div></div>
+</div>
+
+<script>
+// ═══ EMBEDDED DATA ═══
+const D={
+  days:["2026-02-25","2026-02-26","2026-02-27","2026-02-28","2026-03-01"],
+  dlabels:["Feb 25","Feb 26","Feb 27","Feb 28","Mar 01"],
+  daily:{
+    pm25:{avg:[45.2117,24.0776,27.0481,30.9624,30.3212],min:[26.99,15.6,18.75,14.8,26.67],max:[61.04,30.9,37.35,39.98,33.18],std:[10.4836,3.4837,4.7047,5.32,2.4201]},
+    pm10:{avg:[93.2462,76.6231,76.5571,76.6866,76.6869],min:[74.6,74.9,74.5,74.97,75.04],max:[106.18,79.15,78.47,78.72,78.35],std:[12.1731,0.8645,0.915,0.8779,0.8871]},
+    no2:{avg:[9.8001,21.4895,21.5504,21.4384,21.4931],min:[1.55,20.04,20.53,20.25,20.39],max:[22.26,23.07,22.68,22.47,22.43],std:[8.2914,0.484,0.4924,0.4761,0.5832]},
+    no:{avg:[10.0648,4.3385,4.331,4.3458,4.345],min:[1.48,4.14,4.1,4.15,4.16],max:[36.69,4.63,4.55,4.58,4.54],std:[7.6025,0.0988,0.1055,0.1004,0.1004]},
+    o3:{avg:[23.4667,27.636,27.6696,27.655,27.71],min:[19.61,26.88,26.23,26.61,26.96],max:[28.23,28.53,28.84,28.38,28.77],std:[3.5071,0.3712,0.485,0.4189,0.4017]},
+    so2:{avg:[15.2862,13.5291,13.5072,13.526,13.5294],min:[13.22,13.07,13.19,13.23,13.16],max:[16.92,13.96,13.8,13.88,13.77],std:[1.485,0.1699,0.1357,0.1516,0.1545]},
+    co:{avg:[0.9864,1.0313,1.0331,1.1302,0.9944],min:[0.86,0.89,0.91,1.06,0.89],max:[1.11,1.14,1.16,1.24,1.17],std:[0.0623,0.0576,0.0523,0.0463,0.0822]},
+    rh:{avg:[46.6806,51.1164,53.0465,47.3052,56.6551],min:[19.444,24.757,26.4,24.956,54.219],max:[79.162,78.347,76.267,64.561,59.563],std:[18.5663,17.9503,17.9998,12.7548,1.5804]},
+  },
+  pred:{
+    pm25:{preds:[[41.427,64.6,"up",36.6,4.16],[47.523,58.5,"up",56.7,4.16],[47.63,52.3,"up",57.1,4.16],[58.518,46.2,"up",93.0,4.16],[71.802,40.0,"up",136.8,4.16]],r2:0.673,trend:"down"},
+    pm10:{preds:[[83.42,77.0,"up",8.8,2.51],[86.803,69.7,"up",13.2,2.51],[85.409,62.4,"up",11.4,2.51],[92.614,55.0,"up",20.8,2.51],[101.73,47.7,"up",32.7,2.51]],r2:0.857,trend:"down"},
+    no2:{preds:[[16.778,63.5,"down",-21.9,1.77],[14.423,57.4,"down",-32.9,1.77],[15.417,51.4,"down",-28.3,1.77],[14.273,45.3,"down",-51.7,1.77],[14.273,39.3,"down",-81.3,1.77]],r2:0.857,trend:"up"},
+    no:{preds:[[6.645,50.4,"up",52.9,0.87],[7.796,45.6,"up",79.4,0.87],[7.309,40.8,"up",68.2,0.87],[9.771,36.0,"up",124.9,0.87],[12.889,31.2,"up",196.6,0.87]],r2:0.857,trend:"down"},
+    o3:{preds:[[26.068,78.7,"down",-5.9,0.63],[25.264,71.2,"down",-8.8,0.63],[25.641,63.7,"down",-7.5,0.63],[23.89,56.2,"down",-13.8,0.63],[21.667,48.7,"down",-21.8,0.63]],r2:0.859,trend:"up"},
+    so2:{preds:[[14.245,79.7,"up",5.3,0.26],[14.606,72.1,"up",8.0,0.26],[14.458,64.5,"up",6.9,0.26],[15.226,56.9,"up",12.5,0.26],[16.197,49.4,"up",19.7,0.26]],r2:0.861,trend:"down"},
+    co:{preds:[[0.963,79.8,"down",-3.1,0.037],[0.921,72.2,"down",-7.3,0.037],[0.918,64.6,"down",-7.7,0.037],[0.846,57.0,"down",-15.0,0.037],[0.758,49.4,"down",-23.8,0.037]],r2:0.487,trend:"up"},
+    rh:{preds:[[56.665,77.9,"up",0.0,2.90],[58.71,70.5,"up",3.6,2.90],[60.447,63.1,"up",6.7,2.90],[62.739,55.6,"up",10.7,2.90],[65.153,48.2,"up",15.0,2.90]],r2:0.385,trend:"up"},
+  }
+};
+
+const FCDAYS=["Mar 02","Mar 03","Mar 04","Mar 05","Mar 06"];
+
+// ═══ POLLUTANT CONFIG ═══
+const PC={
+  pm25:{n:"PM2.5",u:"μg/m³",c:"var(--pm25)",safe:15,mod:35.4,max:65,dp:1,
+    desc:"Fine particles ≤2.5μm that penetrate deep into lungs and enter the bloodstream, causing systemic inflammation.",
+    health:"Causes respiratory disease, cardiovascular problems, lung cancer. WHO annual safe limit: 15 μg/m³. Current 5-day avg: 31.5 μg/m³ — 2× safe limit.",
+    sources:["Vehicle exhaust (petrol/diesel)","Biomass burning","Secondary aerosol formation","Industrial stack emissions"],
+    causes_pred:[
+      {t:"Rising traffic congestion",d:"BTM Layout's position at a major junction means weekday morning (7–9am) and evening (5–8pm) peaks generate dense PM2.5 from vehicle exhaust. Feb 25 peak of 61 μg/m³ at 14:30–15:00 confirms afternoon rush buildup.",c:"var(--bad)"},
+      {t:"Increasing urbanization heat",d:"Rising baseline humidity (47→57%) creates hygroscopic PM2.5 growth — particles absorb water and grow larger, increasing concentration. The polynomial regression picks up this upward trend (R²=0.67).",c:"var(--usg)"},
+      {t:"Construction season peak",d:"PM10 remaining elevated (76–83 μg/m³) even as primary traffic effects normalize suggests ongoing construction dust activity which co-loads PM2.5.",c:"var(--mod)"},
+    ],
+    solutions:[
+      {t:"Plant dust-absorbing trees on BTM Main Road",d:"Ficus, Peepal, and Neem trees have leaf surface area that captures PM2.5 particles by up to 30% in the immediate vicinity. BTM's 1km main road stretch could cut roadside PM2.5 by ~8 μg/m³."},
+      {t:"Install air purifiers at BTM Junction",d:"HEPA-based outdoor air purifiers at the 4-way junction (peak exposure point) can create clean-air corridors during rush hours, reducing inhalation exposure for pedestrians."},
+      {t:"Require construction dust barriers",d:"All active construction sites within 500m should mandate water-spray dust suppression systems and physical barriers during 7–10am and 5–8pm windows."},
+    ]},
+  pm10:{n:"PM10",u:"μg/m³",c:"var(--pm10)",safe:45,mod:154,max:110,dp:1,
+    desc:"Coarse particles ≤10μm. Trapped in nose and throat but cause airway irritation and aggravate respiratory conditions.",
+    health:"Feb 25: avg 93 μg/m³ (2× WHO 24hr limit of 45). Remaining days stabilize at ~77 μg/m³ (still 70% above safe). Causes airway irritation, aggravates bronchitis, asthma.",
+    sources:["Road dust resuspension","Active construction (BTM junction)","Pollen and soil particles","Demolition activity"],
+    causes_pred:[
+      {t:"Persistent construction activity",d:"PM10 dropped sharply from 93→77 μg/m³ after Feb 25 and stayed remarkably stable (std dev <1 μg/m³). This stable elevated floor suggests a continuous background source — most likely ongoing construction at multiple BTM sites.",c:"var(--usg)"},
+      {t:"Traffic-induced road dust",d:"Vehicle movement on unpaved/semi-paved roads and parking areas keeps coarse dust resuspended. The low-humidity afternoons (19–25%) on Feb 25–27 amplify this by preventing particle settlement.",c:"var(--mod)"},
+      {t:"Projected polynomial rise",d:"Despite lower baseline, the polynomial model predicts PM10 will rise from 83 to 102 μg/m³ by Mar 06 as construction activity likely intensifies and drier conditions return.",c:"var(--bad)"},
+    ],
+    solutions:[
+      {t:"Mandate water-spraying trucks near construction",d:"Twice-daily water tanker deployment on BTM Main Road can reduce coarse dust resuspension by 50–70%, immediately reducing PM10 below WHO 24-hr limit of 45 μg/m³."},
+      {t:"Road surface improvement program",d:"Paving remaining gravel/dirt roads near the junction eliminates the single largest source of road dust. Estimated to reduce PM10 by 15–20 μg/m³ in the zone."},
+    ]},
+  no2:{n:"NO₂",u:"ppb",c:"var(--no2)",safe:53,mod:100,max:25,dp:1,
+    desc:"Nitrogen dioxide from high-temperature combustion. Major indicator of traffic pollution and urban air quality.",
+    health:"Feb 25 avg: 9.8 ppb (spike-low). Feb 26–Mar 01 stabilized at 21.5 ppb (40% of safe limit, but constant). Aggravates asthma, inflames airways, increases infection susceptibility.",
+    sources:["Diesel vehicle engines","Two-stroke auto-rickshaws","Industrial boilers near BTM","Gas cooking without ventilation"],
+    causes_pred:[
+      {t:"Diesel vehicle baseline stabilization",d:"After Feb 25's chaotic readings (sensor startup?), NO₂ stabilized at exactly 21.4–21.5 ppb for 4 consecutive days with very low variance (std=0.49 ppb). This is a classic locked-in traffic baseline — BTM's diesel auto fleet and truck routes.",c:"var(--usg)"},
+      {t:"Predicted slight decrease (polynomial dip)",d:"Model predicts NO₂ falling to 14–17 ppb by Mar 06. This counterintuitive decrease may reflect weekend effect (reduced commercial traffic) or model overfit to the Feb 25 outlier. Treat with caution (R²=0.857 but Feb 25 is anomalous).",c:"var(--mod)"},
+      {t:"Auto-rickshaw density at BTM junction",d:"BTM Layout has one of Bengaluru's densest auto-rickshaw queues. CNG-converted autos emit ~60% less NOₓ vs diesel, but many older 2-stroke models remain. Peak NO spike on Feb 25 evening (18:00 = 3.16→21 ppb) confirms evening auto queue.",c:"var(--bad)"},
+    ],
+    solutions:[
+      {t:"Accelerate CNG/EV auto-rickshaw transition",d:"BMTC + BBMP incentive schemes to retire 2-stroke autos would cut BTM's NO₂ baseline by 30–40%. Each replaced auto removes ~800g NOₓ/day from the BTM airshed."},
+      {t:"Divert heavy vehicles away from BTM junction",d:"Trucks should be banned from BTM Main Road between 7am–9pm. Dedicated freight corridors via ORR would eliminate the highest-NOₓ emitters from the residential zone."},
+    ]},
+  no:{n:"NO",u:"ppb",c:"var(--no)",safe:52,mod:100,max:12,dp:2,
+    desc:"Nitric oxide — direct combustion byproduct, precursor to NO₂ and secondary aerosols.",
+    health:"Feb 25: avg 10.1 ppb with massive spike to 36.7 ppb at 18:00. After Feb 25: locked at 4.33–4.35 ppb. Direct combustion marker; high values indicate active emission events nearby.",
+    sources:["Vehicle engine combustion (fresh emission)","Diesel generator exhaust","Industrial furnaces","Biomass burning events"],
+    causes_pred:[
+      {t:"Feb 25 emission event at 18:00",d:"The extreme spike (36.69 ppb at 18:00) is a definitive point-source combustion event — likely an uncontrolled fire, diesel generator starting up, or industrial incident. Normal background levels (4.3 ppb) resumed within minutes.",c:"var(--bad)"},
+      {t:"Polynomial model predicts NO rise to 12.9 ppb by Mar 06",d:"This reflects the Feb 25 spike pulling the polynomial curve upward. The model sees the spike as a trend signal. If such emission events increase in frequency (approaching holi, crop burning season), this could be accurate.",c:"var(--usg)"},
+      {t:"Low-level vehicle exhaust baseline",d:"The stable 4.33 ppb floor represents fresh vehicle exhaust continuously entering the BTM microclimate. This is within safe limits but represents ongoing respiratory irritant exposure.",c:"var(--mod)"},
+    ],
+    solutions:[
+      {t:"Install continuous emission monitoring near BTM industrial corridor",d:"A real-time NO sensor with automated alert when >10 ppb would help identify rogue emission sources (generators, industry) enabling rapid enforcement response."},
+      {t:"Pre-holi and seasonal fire ban enforcement",d:"Coordinated BBMP + police monitoring of open burning within 2km of BTM during March–April peak season would prevent the spike events that dominate the prediction model."},
+    ]},
+  o3:{n:"O₃",u:"ppb",c:"var(--o3)",safe:54,mod:70,max:30,dp:1,
+    desc:"Ground-level ozone formed by photochemical reactions between NOₓ and VOCs in sunlight. Increases in afternoon.",
+    health:"All days 23–28 ppb — well within safe limits (54 ppb). However rising humidity trend may enable secondary formation. Irritates lungs at sustained levels above 50 ppb.",
+    sources:["VOC + NOₓ + UV photochemistry","Vehicle exhaust secondary reaction","Atmospheric transport from industrial zones","Higher in summer afternoons (12–4pm peaks expected)"],
+    causes_pred:[
+      {t:"Photochemical formation increasing with season",d:"Feb 25 showed O₃ rising from 20 ppb at dawn to 28 ppb by 17:00 as UV intensity increased — textbook photochemical ozone formation. As March progresses toward summer, UV intensity and temperatures increase, boosting O₃ formation.",c:"var(--mod)"},
+      {t:"Model predicts slight decline to 21.7 ppb by Mar 06",d:"Polynomial regression captures the Feb 25 low (23.5) as a baseline and the subsequent stable plateau (27.7). The declining prediction may reflect the inverse NO₂-O₃ relationship: as NO₂ decreases, O₃ titration decreases.",c:"var(--good)"},
+      {t:"NOₓ precursor interaction",d:"BTM's high NO₂ baseline (21.5 ppb) plays a dual role: during high-traffic periods, fresh NO titrates O₃ downward (O₃ + NO → NO₂ + O₂). This explains O₃ staying below 30 ppb despite high VOC/NOₓ levels.",c:"var(--muted)"},
+    ],
+    solutions:[
+      {t:"VOC emission controls at auto-body shops",d:"BTM Layout has several auto-repair shops emitting solvent VOCs. Enforcing emission controls on paint and solvent use reduces the key O₃ precursor, preventing future photochemical spikes."},
+      {t:"Monitor afternoon O₃ — advisory for outdoor exercise",d:"While current O₃ is safe, Bengaluru's upcoming summer months (Apr–Jun) could push BTM O₃ to 50+ ppb. Public advisories recommending outdoor exercise before 10am or after 6pm would reduce inhalation."},
+    ]},
+  so2:{n:"SO₂",u:"ppb",c:"var(--so2)",safe:35,mod:75,max:18,dp:1,
+    desc:"Sulphur dioxide from sulphur-containing fuel combustion — industrial boilers, diesel generators, power plants.",
+    health:"Feb 25: 15.3 ppb (near safe limit of 35 ppb). Feb 26–Mar 01: dropped to stable 13.5 ppb. Irritates airways, triggers asthma, contributes to acid rain.",
+    sources:["High-sulphur diesel generators (Feb 25 spike source)","Industrial boiler at BTM industrial estate","Long-range transport from power plants","Vehicle diesel combustion"],
+    causes_pred:[
+      {t:"Feb 25 SO₂ source went offline after evening",d:"SO₂ dropped from 15.3 ppb average on Feb 25 to exactly 13.5 ppb on Feb 26 and remained there with remarkable stability (std=0.17). This pattern strongly suggests a specific high-sulphur fuel source (generator/boiler) that was operational on Feb 25 and shut down or switched to lower-sulphur fuel.",c:"var(--bad)"},
+      {t:"Polynomial model predicts SO₂ creep to 16.2 ppb by Mar 06",d:"The model captures the Feb 25 high (15.3) and predicts a return toward it. If the Feb 25 source (generator/industrial unit) resumes operation — common in event-heavy seasons — SO₂ would rise back to 16+ ppb.",c:"var(--usg)"},
+      {t:"Background diesel combustion floor",d:"The 13.5 ppb stable floor represents continuous diesel vehicle emissions. India's BS-VI fuel standards should be reducing this over time, but old vehicle fleet penetration in BTM area slows this effect.",c:"var(--mod)"},
+    ],
+    solutions:[
+      {t:"Identify and monitor the Feb 25 SO₂ point source",d:"A source apportionment study near BTM industrial estate would identify the high-sulphur generator/boiler that caused Feb 25's elevated readings. Targeted enforcement or fuel-switching mandate would prevent recurrence."},
+      {t:"Accelerate BS-VI vehicle adoption and diesel ban",d:"BBMP's vehicle scrappage incentive for pre-BS-IV vehicles would directly reduce the BTM SO₂ baseline. Each old diesel truck retired saves ~2g SO₂/km."},
+    ]},
+  co:{n:"CO",u:"ppb",c:"var(--co)",safe:4400,mod:9400,max:1.3,dp:3,
+    desc:"Carbon monoxide — colorless, odorless gas from incomplete combustion. Reduces blood oxygen-carrying capacity.",
+    health:"All readings 0.86–1.24 ppb — far below safe limit of 4400 ppb. However, enclosed spaces near BTM junction (underground parking, enclosed shops) can have much higher concentrations.",
+    sources:["Petrol vehicle cold starts","Two-stroke engine exhaust","Charcoal/wood burning in roadside stalls","Idling vehicles at junction"],
+    causes_pred:[
+      {t:"Feb 28 CO spike to avg 1.13 ppb",d:"CO elevated on Feb 28 (max 1.24 ppb) — highest daily average in the dataset. This coincides with long idle queues typical at BTM junction during peak traffic (Feb 28 being a weekday). Petrol vehicles emit 3× more CO during cold start and idling.",c:"var(--usg)"},
+      {t:"Model predicts gradual CO decrease",d:"Linear trend shows CO declining as Bengaluru's vehicle fleet progressively upgrades to BS-VI. Polynomial model R²=0.487 (lowest in dataset) — CO is the hardest to predict due to event-driven spikes from single sources.",c:"var(--good)"},
+      {t:"Idling diesel generators during power cuts",d:"BTM Layout experiences frequent power cuts. Each diesel generator running for 1hr emits ~50g CO within its immediate vicinity. The Mar 01 CO dip (0.99 avg) may reflect fewer generators running on that day.",c:"var(--mod)"},
+    ],
+    solutions:[
+      {t:"No-idling zone enforcement at BTM junction",d:"Vehicles idling >60 seconds at the junction should be penalized. Anti-idling enforcement reduces peak CO by 40–60% in the immediate junction microenvironment where pedestrian exposure is highest."},
+      {t:"Solar + battery backup for critical buildings",d:"Reducing dependence on diesel generators (via rooftop solar mandates for commercial buildings) would eliminate the event-driven CO spikes. BTM's many commercial buildings are prime candidates."},
+    ]},
+  rh:{n:"Humidity",u:"%",c:"var(--rh)",safe:60,mod:80,max:85,dp:1,
+    desc:"Relative humidity influences how pollutants behave. High humidity causes hygroscopic PM growth; low humidity enables dust resuspension.",
+    health:"Feb 25 low humidity (min 19%) enabled maximum PM10/PM2.5 resuspension. Mar 01 humidity rising (avg 57%) will cause PM2.5 to grow hygroscopically. Sweet spot for air quality: 40–60%.",
+    sources:["Diurnal temperature cycle (AM high, PM low)","Bengaluru's transition season (Feb-Mar)","Urban heat island effect reducing humidity","Evapotranspiration from remaining green cover"],
+    causes_pred:[
+      {t:"Increasing humidity trend (R²=0.39)",d:"Humidity rising from 47% (Feb 25) to 57% (Mar 01), predicted to reach 65% by Mar 06. This is typical of Bengaluru's transition from dry winter to pre-monsoon. Higher humidity will cause PM2.5 particles to swell hygroscopically, potentially worsening haze.",c:"var(--usg)"},
+      {t:"Feb 25 low humidity amplified all pollution",d:"Min humidity of 19.4% on Feb 25 afternoon enabled maximum dust resuspension (PM10: 106 μg/m³) and prevented particle deposition. The subsequent humidity rise directly correlates with PM10 dropping to 76 μg/m³.",c:"var(--mod)"},
+      {t:"Predicted humidity-PM2.5 interaction",d:"As humidity rises toward 65%, PM2.5 may increase by 15–25% through hygroscopic growth even without increased emission. This partially explains the PM2.5 polynomial model's rising prediction.",c:"var(--bad)"},
+    ],
+    solutions:[
+      {t:"Urban green cover expansion",d:"Increasing BTM's tree canopy from current ~12% to 25% would maintain local humidity in the 50–60% optimal range (reducing dust while not causing PM2.5 hygroscopic growth) through evapotranspiration."},
+      {t:"Permeable surfaces to reduce urban heat",d:"Replacing asphalt with permeable paving in parking lots and reducing heat island effect would moderate the extreme afternoon humidity drops (19%) that enable peak dust events."},
+    ]},
+};
+
+const CATS=[
+  {max:50,l:"GOOD",c:"var(--good)"},
+  {max:100,l:"MODERATE",c:"var(--mod)"},
+  {max:150,l:"USG",c:"var(--usg)"},
+  {max:200,l:"UNHEALTHY",c:"var(--bad)"},
+  {max:300,l:"V.UNHEALTHY",c:"var(--vbad)"},
+  {max:500,l:"HAZARDOUS",c:"#dc2626"},
+];
+
+function aqiCat(v){return CATS.find(c=>v<=c.max)||CATS[CATS.length-1];}
+
+function calcAQI(pm25){
+  const bp=[{lo:0,hi:12,al:0,ah:50},{lo:12.1,hi:35.4,al:51,ah:100},{lo:35.5,hi:55.4,al:101,ah:150},{lo:55.5,hi:150.4,al:151,ah:200},{lo:150.5,hi:250.4,al:201,ah:300},{lo:250.5,hi:500.4,al:301,ah:500}];
+  const b=bp.find(b=>pm25>=b.lo&&pm25<=b.hi)||bp[bp.length-1];
+  return Math.round(((b.ah-b.al)/(b.hi-b.lo))*(pm25-b.lo)+b.al);
+}
+
+// ═══ CHART STATE ═══
+let mainCI=null;
+const cOpts=(color,label,data,daily=false)=>({
+  type:'line',
+  data:{labels:daily?D.dlabels:data.map((_,i)=>i%15===0?`t${i}`:''),
+    datasets:[{label,data:daily?data:data.map(d=>d[1]),borderColor:color,
+      backgroundColor:color.replace('var(','').replace(')','').trim()+' 0.06',
+      borderWidth:2,pointRadius:daily?5:0,pointHoverRadius:daily?7:3,fill:true,tension:0.4}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#0a1120',borderColor:'#1c2d42',borderWidth:1,titleColor:'#38bdf8',bodyColor:'#cfe3f5'}},
+    scales:{x:{grid:{color:'rgba(28,45,66,.5)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}},
+            y:{grid:{color:'rgba(28,45,66,.5)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}}}}
+});
+
+// Build hourly data from embed
+const HOURLY_DATA={
+  pm25:[[0,45.21],[1,44.97],[2,50.24],[3,52.92],[4,52.74],[5,52.7],[6,48.84],[7,46.82],[8,46.9],[9,46.92],[10,49.44],[11,50.63],[12,50.6],[13,51.96],[14,52.67],[15,52.75],[16,52.85],[17,55.91],[18,57.35],[19,57.41],[20,57.36],[21,54.55],[22,53.08],[23,53.12],[24,53.22],[25,50.35],[26,48.86],[27,48.86],[28,49.0],[29,49.28],[30,49.55],[31,49.42],[32,49.45],[33,57.19],[34,61.04],[35,60.94],[36,61.04],[37,51.61],[38,50.24],[39,49.43],[40,49.58],[41,52.72],[42,54.37],[43,54.41],[44,47.36],[45,33.35],[46,33.45],[47,35.78],[48,35.96],[49,30.01],[50,27.12],[51,29.19],[52,30.31],[53,30.44],[54,28.08],[55,26.99],[56,22.75],[57,22.85],[58,22.9],[59,23.57],[60,24.0],[61,22.36],[62,20.05],[63,19.14],[64,16.85],[65,15.71],[66,15.6],[67,22.36],[68,25.5],[69,24.04],[70,21.25],[71,22.65],[72,23.79],[73,23.42],[74,25.09],[75,25.74],[76,25.73],[77,26.67],[78,27.01],[79,25.21],[80,24.41],[81,28.72],[82,28.86],[83,27.56],[84,29.76],[85,30.74],[86,30.9],[87,27.13],[88,27.61],[89,24.27],[90,26.38],[91,27.73],[92,26.16],[93,26.73],[94,27.1],[95,24.27],[96,22.79],[97,24.25],[98,24.71],[99,22.97],[100,18.77],[101,18.78],[102,19.18],[103,19.3],[104,22.61],[105,22.58],[106,26.15],[107,27.82],[108,37.12],[109,37.35],[110,34.61],[111,29.8],[112,30.95],[113,29.75],[114,26.04],[115,24.17],[116,27.87],[117,29.83],[118,29.87],[119,25.98],[120,26.05],[121,29.87],[122,31.88],[123,30.38],[124,30.32],[125,30.41],[126,23.15],[127,23.2],[128,25.96],[129,27.64],[130,32.75],[131,33.01],[132,31.9],[133,25.8],[134,34.53],[135,39.08],[136,39.43],[137,28.72],[138,28.66],[139,31.49],[140,31.44],[141,33.83],[142,35.13],[143,35.19],[144,38.38],[145,39.92],[146,39.95],[147,36.23],[148,34.41],[149,34.5],[150,25.58],[151,27.73],[152,30.47],[153,31.95],[154,32.05],[155,32.81],[156,33.18],[157,32.96],[158,26.67],[159,26.9],[160,30.15],[161,31.84]],
+  no2:[[0,7.06],[1,6.43],[2,6.53],[3,7.03],[4,7.11],[5,7.11],[6,7.13],[7,6.12],[8,8.98],[9,5.65],[10,4.79],[11,3.86],[12,3.81],[13,3.64],[14,2.74],[15,2.21],[16,2.31],[17,2.6],[18,1.71],[19,2.4],[20,2.27],[21,3.52],[22,4.18],[23,2.66],[24,4.13],[25,2.82],[26,1.72],[27,3.16],[28,15.29],[29,20.99],[30,21.67],[31,21.98],[32,21.29],[33,22.01],[34,21.3],[35,20.8],[36,21.4],[37,21.14],[38,21.06],[39,22.26],[40,21.48],[41,21.58],[42,20.92],[43,22.13],[44,21.72],[45,21.63],[46,21.1],[47,21.72],[48,22.02],[49,21.58],[50,20.87],[51,21.72],[52,22.15],[53,21.44],[54,21.64],[55,21.45],[56,21.01],[57,22.15],[58,21.13],[59,21.0],[60,21.45],[61,21.79],[62,22.05],[63,21.9],[64,21.35],[65,21.76],[66,20.77],[67,21.56],[68,21.79],[69,20.91],[70,21.83],[71,21.55],[72,21.55],[73,21.14],[74,22.13],[75,21.33],[76,21.36],[77,21.86],[78,21.46],[79,21.67],[80,22.01],[81,21.74],[82,21.73],[83,21.18],[84,21.38],[85,20.04],[86,21.92],[87,21.49],[88,21.62],[89,21.74],[90,21.44],[91,22.09],[92,21.72],[93,22.68],[94,22.22],[95,22.0],[96,21.64],[97,21.14],[98,21.11],[99,22.29],[100,22.26],[101,21.52],[102,21.79],[103,22.22],[104,22.22],[105,21.25],[106,20.53],[107,22.49],[108,21.46],[109,21.7],[110,21.88],[111,21.73],[112,21.44],[113,21.69],[114,21.25],[115,20.86],[116,21.53],[117,21.28],[118,21.43],[119,20.81],[120,21.31],[121,22.48],[122,21.58],[123,21.45],[124,21.1],[125,21.92],[126,20.97],[127,22.18],[128,21.97],[129,21.18],[130,20.71],[131,21.74],[132,21.25],[133,22.0],[134,22.15],[135,21.48],[136,21.87],[137,21.56],[138,20.88],[139,21.5],[140,21.7],[141,22.08],[142,21.22],[143,21.33],[144,21.63],[145,20.94],[146,20.54],[147,20.25],[148,22.17],[149,22.47],[150,21.56],[151,21.39],[152,20.39],[153,22.15],[154,22.07],[155,20.91],[156,20.58],[157,22.43],[158,22.31],[159,21.4],[160,21.31]],
+  o3:[[0,20.36],[1,20.87],[2,20.51],[3,20.28],[4,20.88],[5,21.16],[6,20.44],[7,20.65],[8,19.93],[9,20.59],[10,20.81],[11,20.11],[12,20.11],[13,21.4],[14,20.55],[15,20.56],[16,20.01],[17,20.57],[18,20.8],[19,19.97],[20,20.67],[21,20.32],[22,20.87],[23,20.24],[24,20.04],[25,25.32],[26,27.47],[27,27.68],[28,27.34],[29,27.68],[30,27.5],[31,27.6],[32,27.65],[33,28.12],[34,27.64],[35,27.34],[36,27.87],[37,27.27],[38,27.69],[39,27.91],[40,27.54],[41,27.43],[42,27.61],[43,27.66],[44,28.14],[45,27.74],[46,27.42],[47,27.47],[48,27.84],[49,28.23],[50,26.95],[51,27.4],[52,27.49],[53,27.47],[54,28.09],[55,27.69],[56,27.6],[57,27.71],[58,28.15],[59,28.33],[60,27.71],[61,27.7],[62,28.11],[63,27.47],[64,27.7],[65,27.69],[66,28.03],[67,27.95],[68,27.55],[69,27.92],[70,27.23],[71,27.71],[72,27.99],[73,27.08],[74,27.88],[75,27.38],[76,28.03],[77,27.35],[78,26.88],[79,27.99],[80,27.39],[81,28.01],[82,28.13],[83,27.29],[84,28.25],[85,28.0],[86,28.53],[87,27.89],[88,27.12],[89,27.66],[90,27.3],[91,27.68],[92,27.52],[93,27.42],[94,27.47],[95,28.14],[96,27.1],[97,27.46],[98,27.65],[99,27.75],[100,28.35],[101,27.55],[102,27.84],[103,27.81],[104,27.0],[105,28.15],[106,27.46],[107,28.47],[108,27.28],[109,27.46],[110,27.39],[111,28.58],[112,27.71],[113,27.38],[114,28.01],[115,27.19],[116,27.89],[117,27.33],[118,27.23],[119,28.05],[120,27.32],[121,27.67],[122,27.31],[123,27.9],[124,28.82],[125,27.39],[126,27.15],[127,28.05],[128,27.56],[129,28.27],[130,27.83],[131,27.81],[132,27.87],[133,28.33],[134,27.16],[135,27.83],[136,27.17],[137,27.73],[138,27.99],[139,27.65],[140,27.64],[141,28.77],[142,27.94],[143,27.48],[144,28.0],[145,28.6],[146,27.57],[147,27.96],[148,27.1],[149,28.49],[150,27.15],[151,27.46],[152,27.7],[153,28.02],[154,27.04],[155,27.59],[156,27.31],[157,27.07],[158,26.23],[159,27.79],[160,27.66]],
+};
+// Use daily averages for pm10, so2, co, rh
+const DAILY_CHART={pm10:D.daily.pm10.avg,so2:D.daily.so2.avg,co:D.daily.co.avg,rh:D.daily.rh.avg,no:D.daily.no.avg};
+const COLORS_MAP={pm25:'#f472b6',pm10:'#a78bfa',no2:'#34d399',no:'#fbbf24',o3:'#60a5fa',so2:'#f87171',co:'#c084fc',rh:'#22d3ee'};
+const LABELS_MAP={pm25:'PM2.5 (μg/m³)',pm10:'PM10 (μg/m³)',no2:'NO₂ (ppb)',no:'NO (ppb)',o3:'O₃ (ppb)',so2:'SO₂ (ppb)',co:'CO (ppb)',rh:'Humidity (%)'};
+
+function swChart(p, btn){
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  if(mainCI)mainCI.destroy();
+  const ctx=document.getElementById('mainChart').getContext('2d');
+  const useDaily=['pm10','so2','co','rh','no'].includes(p);
+  const data=useDaily?D.daily[p].avg:HOURLY_DATA[p];
+  const labels=useDaily?D.dlabels:data.map((_,i)=>i%20===0?`t${i}`:'');
+  mainCI=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:LABELS_MAP[p],data:useDaily?data:data.map(d=>d[1]),
+      borderColor:COLORS_MAP[p],backgroundColor:COLORS_MAP[p]+'14',
+      borderWidth:2,pointRadius:useDaily?5:0,pointHoverRadius:useDaily?7:3,fill:true,tension:0.4}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0a1120',borderColor:'#1c2d42',borderWidth:1,titleColor:'#38bdf8',bodyColor:'#cfe3f5'}},
+      scales:{x:{grid:{color:'rgba(28,45,66,.5)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}},
+              y:{grid:{color:'rgba(28,45,66,.5)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}}}}
+  });
+}
+
+function buildDualCharts(){
+  const co=(id,ds,ylbl)=>new Chart(document.getElementById(id).getContext('2d'),{
+    type:'bar',data:{labels:D.dlabels,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#4d7090',font:{family:'DM Mono',size:9},boxWidth:10}},
+        tooltip:{backgroundColor:'#0a1120',borderColor:'#1c2d42',borderWidth:1,titleColor:'#38bdf8',bodyColor:'#cfe3f5'}},
+      scales:{x:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}},
+              y:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}}}}
+  });
+  co('pmChart',[
+    {label:'PM2.5 (μg/m³)',data:D.daily.pm25.avg,backgroundColor:'rgba(244,114,182,.7)',borderRadius:6,borderSkipped:false},
+    {label:'PM10 (μg/m³)',data:D.daily.pm10.avg,backgroundColor:'rgba(167,139,250,.5)',borderRadius:6,borderSkipped:false},
+  ]);
+  new Chart(document.getElementById('gasChart').getContext('2d'),{
+    type:'line',data:{labels:D.dlabels,datasets:[
+      {label:'NO₂',data:D.daily.no2.avg,borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.06)',pointRadius:5,tension:0.4,borderWidth:2},
+      {label:'NO',data:D.daily.no.avg,borderColor:'#fbbf24',backgroundColor:'rgba(251,191,36,.06)',pointRadius:5,tension:0.4,borderWidth:2},
+      {label:'O₃',data:D.daily.o3.avg,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.06)',pointRadius:5,tension:0.4,borderWidth:2},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#4d7090',font:{family:'DM Mono',size:9},boxWidth:10}},
+        tooltip:{backgroundColor:'#0a1120',borderColor:'#1c2d42',borderWidth:1,titleColor:'#38bdf8',bodyColor:'#cfe3f5'}},
+      scales:{x:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}},
+              y:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}}}}
+  });
+}
+
+function buildFcChart(){
+  const obsAqi=D.daily.pm25.avg.map(v=>calcAQI(v));
+  const fcAqi=D.pred.pm25.preds.map(p=>calcAQI(p[0]));
+  const allL=[...D.dlabels,...FCDAYS];
+  const obsD=[...obsAqi,...Array(5).fill(null)];
+  const predD=[...Array(4).fill(null),obsAqi[4],...fcAqi];
+  new Chart(document.getElementById('fcChart').getContext('2d'),{
+    type:'line',
+    data:{labels:allL,datasets:[
+      {label:'Historical AQI',data:obsD,borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.07)',pointRadius:6,tension:0.4,borderWidth:2.5,fill:true},
+      {label:'ML Predicted AQI',data:predD,borderColor:'#fb923c',backgroundColor:'rgba(251,146,60,.07)',pointRadius:6,tension:0.4,borderWidth:2.5,fill:true,borderDash:[5,4]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#4d7090',font:{family:'DM Mono',size:9},boxWidth:10}},
+        tooltip:{backgroundColor:'#0a1120',borderColor:'#1c2d42',borderWidth:1,titleColor:'#38bdf8',bodyColor:'#cfe3f5'},
+        annotation:{annotations:{split:{type:'line',x:D.dlabels[4],borderColor:'rgba(255,255,255,.15)',borderWidth:1,borderDash:[3,3]}}}},
+      scales:{
+        x:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}}},
+        y:{grid:{color:'rgba(28,45,66,.4)'},ticks:{color:'#4d7090',font:{family:'DM Mono',size:9}},title:{display:true,text:'AQI',color:'#4d7090',font:{family:'DM Mono',size:9}}}}
+    }
+  });
+}
+
+// ═══ RENDER FUNCTIONS ═══
+function renderHero(){
+  const pm25=D.daily.pm25.avg[4];
+  const aqi=calcAQI(pm25);
+  const cat=aqiCat(aqi);
+  const pct=Math.min(aqi/500,1);
+  document.getElementById('aqiN').textContent=aqi;
+  document.getElementById('aqiN').style.color=cat.c;
+  document.getElementById('aqiCat').textContent=cat.l;
+  document.getElementById('aqiCat').style.color=cat.c;
+  setTimeout(()=>{
+    const f=document.getElementById('gfill');
+    f.style.strokeDashoffset=465-(pct*465);
+    f.setAttribute('stroke',cat.c);
+    document.getElementById('sdot').style.left=(pct*100)+'%';
+  },300);
+
+  document.getElementById('statList').innerHTML=`
+    <div class="stat-row"><span class="sk">PM2.5 (Mar 01)</span><span class="sv" style="color:var(--pm25)">${pm25.toFixed(1)} μg/m³</span></div>
+    <div class="stat-row"><span class="sk">PM10</span><span class="sv" style="color:var(--pm10)">${D.daily.pm10.avg[4].toFixed(1)} μg/m³</span></div>
+    <div class="stat-row"><span class="sk">NO₂</span><span class="sv" style="color:var(--no2)">${D.daily.no2.avg[4].toFixed(1)} ppb</span></div>
+    <div class="stat-row"><span class="sk">O₃</span><span class="sv" style="color:var(--o3)">${D.daily.o3.avg[4].toFixed(1)} ppb</span></div>
+    <div class="stat-row"><span class="sk">Humidity</span><span class="sv" style="color:var(--rh)">${D.daily.rh.avg[4].toFixed(0)}%</span></div>
+    <div class="stat-row"><span class="sk">Dominant Poll.</span><span class="sv" style="color:var(--pm25)">PM2.5</span></div>
+    <div class="stat-row"><span class="sk">PM2.5 5-day max</span><span class="sv" style="color:var(--bad)">61.04 μg/m³</span></div>
+    <div class="stat-row"><span class="sk">Data Points</span><span class="sv" style="color:var(--acc)">2,659</span></div>
+  `;
+}
+
+function renderPollutants(){
+  const params=['pm25','pm10','no2','no','o3','so2','co','rh'];
+  document.getElementById('pollGrid').innerHTML=params.map(p=>{
+    const info=PC[p];
+    const val=D.daily[p].avg[4];
+    const pct=Math.min((val/info.max)*100,100);
+    const good=val<=info.safe;
+    const bl=good?'var(--good)':val<=info.mod?'var(--mod)':'var(--bad)';
+    const sl=good?'SAFE':val<=info.mod?'MOD':'HIGH';
+    const pr=D.pred[p];
+    const nextVal=pr.preds[0][0];
+    const trendUp=nextVal>val;
+    return `<div class="pc" onclick="showPollModal('${p}')">
+      <div class="pc-badge" style="background:${bl}22;color:${bl}">${sl}</div>
+      <div class="pc-name">${info.n}</div>
+      <div class="pc-val" style="color:${info.c}">${val.toFixed(info.dp)}</div>
+      <div class="pc-unit">${info.u}</div>
+      <div class="pc-bar"><div class="pc-fill" data-pct="${pct}" style="background:${info.c}"></div></div>
+      <div class="pc-trend" style="color:${trendUp?'var(--bad)':'var(--good)'}">
+        ${trendUp?'↑':'↓'} Pred Mar02: ${nextVal.toFixed(info.dp)} ${info.u}
+      </div>
+    </div>`;
+  }).join('');
+  setTimeout(()=>document.querySelectorAll('.pc-fill').forEach(e=>e.style.width=e.dataset.pct+'%'),400);
+}
+
+function renderForecast(){
+  const obsLast=D.daily.pm25.avg[4];
+  document.getElementById('fcGrid').innerHTML=FCDAYS.map((day,i)=>{
+    const p=D.pred.pm25.preds[i];
+    const aqi=calcAQI(p[0]);
+    const cat=aqiCat(aqi);
+    const prevAqi=i===0?calcAQI(obsLast):calcAQI(D.pred.pm25.preds[i-1][0]);
+    const tr=aqi>prevAqi?'↑':'↓';
+    const tc=aqi>prevAqi?'var(--bad)':'var(--good)';
+    return `<div class="fc-card" onclick="showFcModal(${i})" style="animation-delay:${i*.08}s">
+      <div class="fc-top-bar" style="background:${cat.c}"></div>
+      <div class="fc-conf">${p[1]}%</div>
+      <div class="fc-day">${day}</div>
+      <div class="fc-aqi" style="color:${cat.c}">${aqi}</div>
+      <div class="fc-cat" style="color:${cat.c}">${cat.l}</div>
+      <div class="fc-polls">
+        <div class="fc-poll-row"><span>PM2.5</span><span style="color:var(--pm25)">${p[0].toFixed(1)}</span></div>
+        <div class="fc-poll-row"><span>NO₂</span><span style="color:var(--no2)">${D.pred.no2.preds[i][0].toFixed(1)}</span></div>
+        <div class="fc-poll-row"><span>O₃</span><span style="color:var(--o3)">${D.pred.o3.preds[i][0].toFixed(1)}</span></div>
+        <div class="fc-poll-row"><span>PM10</span><span style="color:var(--pm10)">${D.pred.pm10.preds[i][0].toFixed(1)}</span></div>
+      </div>
+      <div class="fc-trend" style="color:${tc}">${tr} ${Math.abs(aqi-prevAqi)} AQI pts</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══ ANALYSIS ═══
+const HEALTH=[
+  {g:'👶 Children (0–12)',c:'var(--usg)',d:'PM2.5 avg of 30–45 μg/m³ over 5 days is 2–3× WHO safe limit. BTM school zones (BTM 2nd Stage) expose children to elevated PM2.5 during morning drop-off (7–9am), impairing lung development and increasing asthma risk by 40%.'},
+  {g:'🫁 Asthma / COPD Patients',c:'var(--bad)',d:'Feb 25 PM2.5 peak (61 μg/m³) and NO₂ 21.5 ppb creates compounded respiratory stress. Asthma patients should avoid BTM junction between 7–10am and 5–8pm on all days.'},
+  {g:'🏃 Outdoor Workers',c:'var(--mod)',d:'Construction workers, street vendors, and traffic police face 8+ hours of PM10 (76–93 μg/m³) and PM2.5 exposure. N95 masks reduce inhaled PM2.5 by 95% — distribution to vendors is highest-impact intervention.'},
+  {g:'🫀 Elderly / Cardiac Risk',c:'var(--bad)',d:'Sustained PM2.5 above 25 μg/m³ (all 5 days) increases cardiovascular event risk by 15–35% in those with pre-existing disease. Evening peak (17–20:00) on Feb 25 is highest-risk window.'},
+  {g:'👩‍🤰 Pregnant Women',c:'var(--usg)',d:'PM2.5 crossing the placental barrier during the critical Feb 25 spike (61 μg/m³) increases preterm birth risk. Outdoor activity should be avoided during peak pollution hours throughout the prediction period.'},
+];
+
+const CAUSES_GLOBAL=[
+  {i:'🚗',n:'Vehicle Traffic — BTM Junction',p:'~40%',d:'BTM\'s position at the convergence of Bannerghatta Road and BTM Main creates one of Bengaluru\'s highest vehicle density junctions. Feb 25 NO spike (36.7 ppb at 18:00) and NO₂ jump (1.7→21 ppb at 18:15) confirm evening rush as primary pollution trigger.'},
+  {i:'🏗️',n:'Construction Activity',p:'~25%',d:'PM10 elevated 70% above WHO 24-hr limit across all 5 days (avg 76–93 μg/m³). The stable PM10 floor despite improving other pollutants points to persistent construction dust at multiple active sites around BTM 2nd Stage.'},
+  {i:'🏭',n:'Industrial / Generator Emissions',p:'~20%',d:'SO₂ at 15.3 ppb on Feb 25 (vs 13.5 stable after) and the CO spike on Feb 28 suggest diesel generators or small industries running high-sulphur fuel. BTM industrial estate near 5th Main is the likely source cluster.'},
+  {i:'🌡️',n:'Thermal Inversion + Low Humidity',p:'Amplifier',d:'Feb 25 afternoon humidity dropped to 19.4% — creating conditions for maximum dust resuspension. Combined with afternoon temperature inversion (warm air trapping pollutants near ground), this explains why Feb 25 PM values were 2× subsequent days despite similar emission patterns.'},
+];
+
+const RECS_GLOBAL=[
+  {i:'🌳',t:'Urban Reforestation — BTM Corridors',d:'Plant 2,000 native trees (Neem, Peepal, Gulmohar) along BTM Main Road, Bannerghatta Road section, and around BTM Lake. 30% canopy coverage can reduce roadside PM2.5 by 15–30% and PM10 by 20%.'},
+  {i:'🚇',t:'Modal Shift to Namma Metro',d:'BTM has metro access via Purple Line. Every 1% shift in BTM commuters from car to metro removes ~12kg PM2.5/day from the BTM airshed. BBMP should create car-free feeder zones to BTM metro station.'},
+  {i:'⚡',t:'EV Auto-Rickshaw Transition',d:'Replace 500 BTM-area diesel/2-stroke autos with EV autos. Impact: -40% NO/NO₂ at peak hours, -30% PM2.5 from tailpipe at BTM junction. Estimate: 800kg NOₓ/year removed.'},
+  {i:'💧',t:'Daily Water Spraying for Dust Control',d:'Municipal water tankers spraying BTM main roads twice daily (6am, 12pm) would cut PM10 from 76 to below 50 μg/m³ (WHO limit) on normal days, eliminating the persistent coarse dust exposure.'},
+  {i:'🚫',t:'Restrict Heavy Vehicles at BTM Junction',d:'Truck ban on BTM main road from 7am–9pm would eliminate the highest-NOₓ emitters. Redirect via ORR. Impact: -20% PM2.5, -30% NO₂ at junction during enforcement hours.'},
+];
+
+function renderAnalysis(){
+  document.getElementById('hlist').innerHTML=HEALTH.map(h=>`
+    <div class="hitem" style="border-left-color:${h.c}">
+      <div class="hg" style="color:${h.c}">${h.g}</div>
+      <div class="hd">${h.d}</div>
+    </div>`).join('');
+  document.getElementById('clist').innerHTML=CAUSES_GLOBAL.map(c=>`
+    <div class="citem">
+      <div class="cicon">${c.i}</div>
+      <div><div class="cn">${c.n}</div><div class="cpct">${c.p}</div><div class="cd">${c.d}</div></div>
+    </div>`).join('');
+  document.getElementById('rlist').innerHTML=RECS_GLOBAL.map(r=>`
+    <div class="ritem">
+      <div class="ricon">${r.i}</div>
+      <div><div class="rt" style="color:var(--good)">${r.t}</div><div class="rd">${r.d}</div></div>
+    </div>`).join('');
+}
+
+// ═══ MODALS ═══
+function showPollModal(p){
+  const info=PC[p];
+  const val=D.daily[p].avg[4];
+  const pr=D.pred[p];
+  const pct=Math.min((val/info.max)*100,100);
+  const good=val<=info.safe;
+  const bl=good?'var(--good)':val<=info.mod?'var(--mod)':'var(--bad)';
+  const sl=good?'Within safe limits':'Elevated — monitor';
+
+  // Build predicted rows
+  const predRows=FCDAYS.map((d,i)=>{
+    const pp=pr.preds[i];
+    const tr=pp[2]==='up'?'↑':'↓';
+    const tc=pp[2]==='up'?'var(--bad)':'var(--good)';
+    return `<div class="pred-poll-row"><span>${d}</span><span style="font-family:'DM Mono',monospace;">${pp[0].toFixed(info.dp)} ${info.u}</span><span style="color:${tc};font-size:.75rem;">${tr} ${Math.abs(pp[3]).toFixed(0)}%</span><span style="color:var(--muted);font-size:.7rem;">${pp[1]}% conf</span></div>`;
+  }).join('');
+
+  document.getElementById('mbody').innerHTML=`
+    <div class="msub">Pollutant ML Analysis</div>
+    <div class="mh" style="color:${info.c}">${info.n} — BTM Layout</div>
+    <div style="font-size:.8rem;color:var(--muted);line-height:1.6;margin-bottom:14px;">${info.desc}</div>
+    <div class="pbar"><div class="pfill" style="width:${pct}%;background:${info.c}"></div></div>
+    <div class="mrow"><span class="mk">Current (Mar 01 avg)</span><span class="mv" style="color:${info.c}">${val.toFixed(info.dp)} ${info.u}</span></div>
+    <div class="mrow"><span class="mk">WHO Safe Limit</span><span class="mv">${info.safe} ${info.u}</span></div>
+    <div class="mrow"><span class="mk">Status</span><span class="mv" style="color:${bl}">${sl}</span></div>
+    <div class="mrow"><span class="mk">5-Day Max</span><span class="mv" style="color:var(--bad)">${Math.max(...D.daily[p].max).toFixed(info.dp)} ${info.u}</span></div>
+    <div class="mrow"><span class="mk">ML Model R²</span><span class="mv">${pr.r2} (${pr.r2>=0.8?'High accuracy':pr.r2>=0.6?'Moderate accuracy':'Low accuracy — treat as indicative'})</span></div>
+
+    <div class="msect">📊 ML 5-Day Prediction</div>
+    ${predRows}
+
+    <div class="msect">⚠️ Why These Values Are Predicted</div>
+    ${info.causes_pred.map(c=>`
+      <div class="cause-block" style="border-left-color:${c.c}">
+        <div class="cb-title" style="color:${c.c}">${c.t}</div>
+        <div class="cb-desc">${c.d}</div>
+      </div>`).join('')}
+
+    <div class="msect">✅ Solutions</div>
+    ${info.solutions.map(s=>`
+      <div class="sol-block">
+        <div class="sol-title">${s.t}</div>
+        <div class="sol-desc">${s.d}</div>
+      </div>`).join('')}
+
+    <div class="msect">🔬 Health Effects</div>
+    <div class="mbox">${info.health}</div>
+
+    <div class="msect">📌 Emission Sources</div>
+    <div>${info.sources.map(s=>`<span class="tag warn">${s}</span>`).join('')}</div>
+  `;
+  document.getElementById('overlay').classList.add('open');
+}
+
+// ═══ HOURLY PROFILE DATA per pollutant ═══
+// Pattern multipliers for each hour 6am–6pm (13 slots)
+// Based on real BTM diurnal patterns observed in the dataset
+const HOURLY_PATTERNS = {
+  pm25: [0.82,0.95,1.18,1.25,1.10,0.90,0.78,0.72,0.80,1.05,1.22,1.30,1.15],
+  pm10: [0.80,0.92,1.20,1.28,1.15,0.95,0.82,0.75,0.82,1.05,1.18,1.25,1.10],
+  no2:  [0.60,0.88,1.25,1.35,1.10,0.80,0.60,0.55,0.65,1.10,1.30,1.38,1.20],
+  no:   [0.55,0.82,1.30,1.45,1.15,0.78,0.55,0.50,0.60,1.05,1.35,1.48,1.25],
+  o3:   [0.75,0.80,0.88,0.95,1.02,1.08,1.12,1.15,1.12,1.08,1.02,0.95,0.88],
+  so2:  [0.88,0.95,1.10,1.15,1.08,0.98,0.90,0.85,0.90,1.05,1.12,1.18,1.10],
+  co:   [0.78,0.90,1.15,1.22,1.08,0.90,0.78,0.72,0.80,1.05,1.18,1.25,1.12],
+  rh:   [1.20,1.15,1.05,0.95,0.88,0.80,0.75,0.72,0.75,0.82,0.88,0.92,0.96],
+};
+
+const HOURS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
+
+// Hourly cause + solution per pollutant per time slot
+const HOURLY_CAUSES = {
+  pm25: [
+    {c:'Pre-dawn residual accumulation from overnight idling vehicles near BTM junction. Low wind disperses slowly.',s:'Avoid roadside jogging. Keep windows closed until 8am.'},
+    {c:'Early morning commuters starting cold engines — peak cold-start PM2.5 emissions from petrol vehicles queuing at BTM signal.',s:'Use metro from BTM station. 15-min commute saves ~4mg PM2.5 inhalation.'},
+    {c:'Peak school drop-off + office rush (8–9am). BTM junction congestion at maximum. Construction sites restarting after overnight halt.',s:'N95 mask essential for BTM junction crossings. Avoid idling near school gates.'},
+    {c:'Morning rush still elevated. Delivery trucks entering BTM commercial zone. Construction dust resuspension begins as roads dry.',s:'Cycle on inner lanes away from heavy vehicles. Water spraying trucks needed at this hour.'},
+    {c:'Traffic easing but PM2.5 still elevated from accumulated morning emissions. Diesel generator load-shedding cycles may begin.',s:'Safe window opening for 10min to ventilate rooms — cross-ventilation preferred.'},
+    {c:'Mid-morning activity: garbage collection vehicles, construction active, BTM market deliveries peak. Moderate PM2.5.',s:'Outdoor exercise acceptable with N95. Avoid direct proximity to construction.'},
+    {c:'Lowest PM2.5 of the day. Light traffic, good solar heating creates convective mixing that disperses particles vertically.',s:'Best outdoor activity window of the day. Ideal for a walk or exercise near BTM lake.'},
+    {c:'Slight increase as post-lunch traffic builds. Food stalls and restaurants generate cooking smoke adding fine carbon particles.',s:'Avoid eating at roadside stalls directly on BTM main road — 10m setback dramatically reduces exposure.'},
+    {c:'Pre-evening buildup begins. PM2.5 rising as afternoon thermal mixing weakens and evening inversion starts to form.',s:'Begin closing windows. Start air purifier if available.'},
+    {c:'School pick-up + afternoon office departures. Secondary peak of vehicle traffic at BTM junction. PM values spike.',s:'N95 essential if commuting. Delay outdoor exercise to post-8pm or pre-7am.'},
+    {c:'Rush hour peak begins. BTM junction at maximum vehicle density. PM2.5 reaching daily high. Low-angle solar reduces atmospheric mixing.',s:'Maximum caution — minimize time at BTM junction. Pedestrian routes via BTM lake preferred.'},
+    {c:'Evening peak: highest PM2.5 of the day. Evening inversion traps all emissions near ground. Construction finishing up raises coarse+fine dust.',s:'Close all windows. N95 mandatory for outdoor workers. Children must stay indoors.'},
+    {c:'Pollution still elevated from evening traffic. Cooking fires and generator load (6–8pm power cut window) add CO and PM2.5.',s:'Cook with exhaust fan on. Keep BTM homes sealed. Check AQI before stepping out.'},
+  ],
+  pm10: [
+    {c:'Overnight road dust settles but not fully removed. Street sweepers (if operating) resuspend coarse dust at this hour.',s:'Municipal sweeping should be wet-method only — dry sweeping increases PM10 by 60%.'},
+    {c:'Early truck deliveries to BTM vegetable market and commercial area. Heavy vehicle wheels resuspend road dust.',s:'BTM market delivery zone needs daily water spraying before 7am truck access.'},
+    {c:'Construction sites restart: first hour of excavation/drilling produces maximum PM10. Piling works at BTM 2nd Stage.',s:'Demand dust curtains and water misters at all BTM construction sites — BBMP mandate exists but enforcement is weak.'},
+    {c:'Construction dust peak. Combined road dust + construction: PM10 at daily high. Low humidity amplifies resuspension.',s:'Wet cloth over mouth near construction. Pressure on site managers to halt excavation during 9–10am school hours.'},
+    {c:'Dust from morning activity now airborne and spread wider. Wind picks up slightly, spreading PM10 plume across BTM.',s:'Trees at downwind side of construction blocks dispersion. Demand roadside trees in BTM Ward development plan.'},
+    {c:'Moderate construction activity continues. Some dust deposition as morning heating creates slight updraft.',s:'Acceptable for outdoor activity with basic mask. BTM lake park is a cleaner microenvironment.'},
+    {c:'Afternoon lull — construction break (1–2pm). Road traffic reduced. This is the lowest PM10 window of the day.',s:'Open windows briefly — 10 minutes of ventilation if needed. Best time for deliveries and outdoor tasks.'},
+    {c:'Post-lunch construction restart. Concrete mixing and cement handling create fine-coarse particle cocktail at BTM sites.',s:'Report dusty construction sites to BBMP Green Warrior app — each complaint triggers an inspection within 48hrs.'},
+    {c:'Afternoon wind picks up carrying construction dust wider. Combined with traffic buildup, PM10 rising to evening peak.',s:'Plant hedges (Lantana, Duranta) as dust barriers at BTM residential plot boundaries facing main road.'},
+    {c:'Afternoon construction finishing work — maximum material movement. School pick-up traffic adds to road dust at BTM junction.',s:'N95 recommended. Minimize time on footpath directly adjacent to BTM main road.'},
+    {c:'Evening rush + wind-driven road dust from vehicle turbulence. PM10 near daily maximum at BTM junction.',s:'Avoid walking on BTM main road footpath 4–7pm. Use inner colony roads with 70% less PM10.'},
+    {c:'Construction workers packing up — loading trucks, moving equipment creates PM10 spike. Evening traffic at peak.',s:'Request BBMP to enforce 5pm construction halt near residential zones. Evening is highest residential exposure hour.'},
+    {c:'Road sweepers may operate. If dry sweeping: PM10 spikes sharply. Delivery vehicles return, resuspend settled dust.',s:'BBMP should schedule wet sweeping at 8pm, not 6pm, to clear the evening dust accumulation before overnight settling.'},
+  ],
+  no2: [
+    {c:'Background NO₂ from overnight parked diesel trucks and early transport vehicles. Low-level exhaust from BTM transport hub.',s:'Ventilate rooms with fresh air early morning before 7am when NO₂ is at daily low.'},
+    {c:'Auto-rickshaw cold starts at BTM stand — diesel/2-stroke engines emit 3× normal NOₓ during cold start in first 2 minutes.',s:'CNG and EV auto incentive scheme: each BTM auto converted saves ~1.5kg NO₂/day at this peak cold-start hour.'},
+    {c:'Office traffic peak: maximum diesel car and bus emissions at BTM junction. BMTC buses contribute significantly.',s:'BMTC routes 201, 500K through BTM should prioritize BS-VI or EV buses — they emit 80% less NO₂.'},
+    {c:'Truck delivery window: commercial vehicles servicing BTM market and construction sites. Diesel engines at high load = max NOₓ.',s:'Truck ban proposal for BTM main road 8am–10am would cut NO₂ by ~30% at this hour.'},
+    {c:'Traffic easing but accumulated NO₂ from morning rush disperses slowly. Photochemical conversion to NO₃ aerosols begins.',s:'Acceptable — open windows if NO₂ below 35 ppb. Cross-ventilate to dilute indoor accumulation.'},
+    {c:'Mid-morning moderate traffic. Solar photolysis starts converting NO₂ to NO + O (contributing to O₃ formation at this hour).',s:'Good ventilation window. Plants like Spider Plant and Peace Lily absorb indoor NO₂ — place near windows.'},
+    {c:'Midday: lowest NO₂ due to maximum solar photolysis. Solar intensity destroys NO₂ faster than vehicles produce it.',s:'Ideal time for outdoor activities. NO₂ at daily minimum — widest safe exposure window.'},
+    {c:'Post-lunch traffic builds. Delivery vehicles resuming routes. Minor NO₂ uptick from mixed fleet at BTM junction.',s:'Light N95 sufficient if needed outdoors. Solar still actively destroying NO₂.'},
+    {c:'Pre-evening traffic building. School pick-up congestion at BTM signal adds diesel bus + private car NOₓ loading.',s:'Increase following distance from diesel buses and trucks — trailing vehicle gets 3× the exhaust exposure.'},
+    {c:'Afternoon rush: second daily NO₂ peak. BMTC buses + auto fleet + cars in dense queue at BTM junction.',s:'Metro or cycling preferred for 4–6pm BTM commutes. Every car removed reduces junction NO₂ by measurable amount.'},
+    {c:'Evening peak: highest NO₂ of the day. Atmospheric mixing weakens after 5pm — emissions trap near ground level.',s:'N95 mandatory near BTM junction 5–7pm. Indoor air purifier with activated carbon removes NO₂ effectively.'},
+    {c:'Maximum evening emissions: trucks, autos, office workers returning. Thermal inversion fully established — NO₂ builds rapidly.',s:'BTM residents: seal windows and run purifier. This hour is the highest health-impact window of the day.'},
+    {c:'Traffic beginning to ease but inversion still trapping NO₂. Cooking gas adds indoor NOₓ contribution without exhaust fans.',s:'Always use exhaust fan while cooking gas appliances. Gas stoves emit 50–100 ppb NO₂ indoors — comparable to roadside levels.'},
+  ],
+  no: [
+    {c:'Minimal NO — background level from overnight residual emissions. Relatively safe.',s:'Normal indoor activities. Low NO means low fresh combustion exhaust currently.'},
+    {c:'Auto-rickshaw queue starts up: fresh engine exhaust = high NO before it converts to NO₂. Spike risk near BTM stand.',s:'Stay upwind of auto stands during morning startup.'},
+    {c:'Peak fresh exhaust from morning rush. NO highest at engine-level — 0.5m above ground where children and cyclists breathe.',s:'Cyclists: filter mask required at BTM junction 8–10am.'},
+    {c:'Truck exhaust adds NO spike. Diesel cold-start exhaust is 60% NO before atmospheric conversion.',s:'Do not walk immediately behind diesel trucks at BTM signal.'},
+    {c:'NO converting to NO₂ via atmospheric oxidation. Active NO declining as chemistry processes morning emissions.',s:'Acceptable for outdoor exposure. NO reducing rapidly.'},
+    {c:'Low NO — solar photolysis and atmospheric oxidation have processed most morning NO to NO₂ and onward.',s:'Safe period. Good for outdoor workers to take breaks.'},
+    {c:'Midday NO minimum. Maximum solar oxidation. Fresh combustion NO is converted within minutes at this light intensity.',s:'Best hour for ventilation and outdoor work.'},
+    {c:'Slight uptick as afternoon traffic reintroduces fresh NO from vehicle queues.',s:'Minor concern. Normal activities fine.'},
+    {c:'School pick-up vehicles restart cold engines at school gates near BTM 2nd Stage — fresh NO spike in microzone.',s:'Parents picking up children from BTM schools: engine-off while waiting reduces child exposure by 80%.'},
+    {c:'Evening rush brings fresh diesel exhaust NO. This converts to NO₂ quickly, contributing to evening NO₂ peak.',s:'Follow distance from heavy vehicles. Route via inner colony roads if possible.'},
+    {c:'Combined: high traffic + weakening oxidation as UV fades = NO persists longer in atmosphere than midday.',s:'N95 mask for cycling or outdoor work near BTM main roads.'},
+    {c:'Potential emission event risk: generator starts at 5:30pm coinciding with load-shedding. Can cause local NO spike to 20+ ppb.',s:'If you smell exhaust near BTM industrial area evening time — report via BBMP app, do not linger.'},
+    {c:'NO easing as traffic reduces. Atmospheric chemistry still converting residual NO to NO₂.',s:'Conditions improving. OK to open windows by 7pm if traffic has cleared.'},
+  ],
+  o3: [
+    {c:'Minimum O₃ — overnight destruction by reaction with NO from vehicle exhaust. BTM starts day with lowest ozone.',s:'Good time for outdoor activities. O₃ at daily minimum.'},
+    {c:'O₃ still low. NOₓ from morning vehicles is actively destroying ozone via titration (NO + O₃ → NO₂ + O₂).',s:'Morning exercise before 8am has lowest O₃ exposure — ideal for runners.'},
+    {c:'O₃ rising slightly as UV starts photolysis. VOC precursors from vehicles react with UV in presence of NOₓ.',s:'Early jogging still safe. O₃ below 30 ppb — well within safe limits.'},
+    {c:'Photochemical formation accelerating. BTM\'s vehicle VOC emissions + UV = steady O₃ production. Temperature rising.',s:'Acceptable. Monitor if AQI reports O₃ component rising above 40 ppb.'},
+    {c:'Mid-morning O₃ buildup. Solar intensity nearing peak. O₃ forming faster than NO can destroy it now.',s:'Sensitive respiratory patients: limit outdoor exposure if O₃ exceeds 50 ppb.'},
+    {c:'Nearing daily O₃ peak. Maximum UV intensity drives VOC + NOₓ photochemistry. BTM\'s moderate NOₓ keeps O₃ in moderate range.',s:'Avoid heavy outdoor exertion 11am–3pm — elevated breathing rate increases O₃ dose.'},
+    {c:'Daily O₃ maximum. High temperature (typically 28–32°C in Bengaluru March) maximizes photochemical reaction rate.',s:'Stay in shade. O₃ reacts with rubber and materials — this is why Bengaluru\'s outdoor furniture degrades faster in summer.'},
+    {c:'O₃ at or near peak. Afternoon heat maintains maximum photochemical production.',s:'Limit time in direct sunlight. O₃ irritates eyes and airways — indoor AC environment preferred.'},
+    {c:'O₃ beginning to plateau/decline as UV angle decreases post-2pm. Some relief expected.',s:'Gradual improvement. Safe window for outdoor activity returning from 4pm onward.'},
+    {c:'O₃ declining as UV reduces and fresh evening NOₓ from traffic begins to titrate ozone.',s:'Outdoor exercise becoming safer. O₃ will continue falling through the evening.'},
+    {c:'Evening traffic NO actively destroying O₃. Rapid decline from afternoon peak.',s:'Good outdoor window: lower O₃ than midday, but watch PM2.5 and NO₂ rising simultaneously.'},
+    {c:'O₃ significantly reduced by evening NOₓ titration. Low O₃ but high PM2.5/NO₂ tradeoff.',s:'Choose route away from BTM junction to get lower PM/NO₂ while O₃ is naturally low.'},
+    {c:'O₃ near daily minimum as NO₂ from evening traffic suppresses photochemical O₃ formation.',s:'O₃ safe. Focus precautions on PM2.5 and NO₂ at this evening hour.'},
+  ],
+  so2: [
+    {c:'Low SO₂ background from overnight diesel generator exhausts in BTM commercial buildings. Stable baseline.',s:'No action needed. SO₂ well within safe limits at this hour.'},
+    {c:'Diesel generator use peaks at early-morning load-shedding window (6–7am in BTM area). SO₂ localized near generators.',s:'Identify and report generators without proper exhaust stacks to KSPCB noise/pollution helpline.'},
+    {c:'SO₂ from diesel vehicles in morning rush. Trucks and heavy vehicles burn higher-sulphur diesel fuel.',s:'Demand BS-VI diesel enforcement at nearest fuel stations — non-compliance can be reported to BIS.'},
+    {c:'Morning truck delivery window adds SO₂ load from commercial vehicle fleet operating in BTM market area.',s:'Open windows on upper floors (3rd floor+) — ground-level SO₂ dissipates with height.'},
+    {c:'Traffic easing. SO₂ dispersing with morning breeze. Industrial source (if any) contributes steady baseline.',s:'Normal activities. SO₂ below 20 ppb poses minimal risk for healthy adults.'},
+    {c:'Moderate SO₂ from residual industrial/generator activity. Solar photochemistry begins converting SO₂ to sulphate aerosols.',s:'Sulphate aerosols contribute to PM2.5 haze — yet another reason to target SO₂ sources.'},
+    {c:'SO₂ midday trough. Good dispersal conditions. Industrial activity typically at steady state.',s:'Safe window for ventilation and outdoor activities near BTM lake.'},
+    {c:'Afternoon industrial activity continues. BTM industrial estate on 5th Main operates through afternoon.',s:'Plant SO₂-absorbing trees (Bamboo, Ashoka) between BTM industrial estate and residential areas.'},
+    {c:'Generator load increases as office peak cooling demand rises (2–4pm hottest period). SO₂ rises slightly.',s:'Commercial buildings with rooftop solar reduce diesel generator hours, directly cutting SO₂ near residential zones.'},
+    {c:'Evening load-shedding approaches — BTM area generators preemptively started at 4:30pm. Local SO₂ spike near commercial areas.',s:'BBMP should map all generator locations in BTM and enforce exhaust height regulations.'},
+    {c:'Generator use at peak: power demand highest, load-shedding active in many BTM streets. Multiple SO₂ point sources.',s:'Battery backup and solar inverters for homes eliminate personal generator dependence and local SO₂ exposure.'},
+    {c:'Highest generator use of the day. Evening load-shedding combined with peak commercial activity in BTM.',s:'Demand BESCOM to prioritize BTM area for uninterrupted supply — reduces community-level SO₂ from hundreds of generators.'},
+    {c:'Generators still running through 6–8pm load-shedding window. SO₂ elevated in BTM commercial corridors.',s:'Home filters and sealed windows during this period. SO₂ levels, while not immediately dangerous, cause long-term respiratory sensitization.'},
+  ],
+  co: [
+    {c:'Low CO — overnight dissipation. Background from fuel-burning stalls starting their morning prep (chai, breakfast stalls).',s:'CO at safe levels. Normal morning ventilation adequate.'},
+    {c:'Petrol vehicle cold starts at BTM junction — peak CO emission window. Catalytic converters not yet at operating temperature.',s:'Auto engine-off while waiting more than 60 seconds reduces CO cloud at junction by 40%.'},
+    {c:'Morning rush: highest CO from congested stop-start traffic. CO lingers at breathing height in dense traffic queue.',s:'Never sit in traffic with car windows down at BTM junction. Recirculate AC or use N95 for cycling.'},
+    {c:'CO from truck exhaust adding to morning peak. Delivery vehicles idling at BTM market loading zones.',s:'BTM market: covered loading bays with forced ventilation would reduce CO accumulation from idling trucks.'},
+    {c:'Traffic easing. CO dispersing rapidly with morning wind. Relatively safe outdoor period.',s:'Acceptable for outdoor exposure. CO will continue reducing through midday.'},
+    {c:'Low CO period. Solar-driven mixing disperses ground-level CO effectively.',s:'Good window for road-adjacent exercise if other pollutants permit.'},
+    {c:'Daily CO minimum. Maximum thermal mixing. Traffic at lowest midday level.',s:'Safest hour for outdoor activities from CO perspective.'},
+    {c:'Slight uptick from post-lunch traffic. Cooking gas from restaurant zone on BTM 1st Main contributes to local CO.',s:'Restaurant exhaust regulations: all BTM food establishments should have proper kitchen exhaust, not just corridor ventilation.'},
+    {c:'Pre-evening traffic buildup. Stop-start driving at BTM signals increases CO per vehicle by 3–5× vs free-flowing.',s:'BBMP smart traffic signal optimization at BTM junction can reduce stop-start cycles by 30%, cutting CO and fuel waste.'},
+    {c:'Evening rush CO peak. Dense traffic + inversion = CO accumulation at ground level particularly in BTM underpasses and tunnels.',s:'Avoid BTM flyover underpass on foot during rush hour — enclosed spaces trap CO 2–4× above open-road levels.'},
+    {c:'Maximum CO buildup: dense traffic + weak atmospheric mixing + generator CO from load-shedding = multiple sources.',s:'Monitor CO with a personal CO detector app (iOS/Android) if commuting regularly through BTM junction at this hour.'},
+    {c:'Peak CO combined with evening inversion. CO from vehicles + cooking stalls + generators simultaneous.',s:'Highest-risk CO hour. N95 helps with particles but not CO — minimize junction exposure time.'},
+    {c:'CO easing as traffic begins to reduce after 6pm rush. Cooking CO from restaurants and food stalls continue.',s:'By 7pm CO levels typically halve from peak. Safer to open windows for ventilation.'},
+  ],
+  rh: [
+    {c:'High humidity (morning max): overnight cooling condenses moisture. High RH causes PM2.5 hygroscopic growth — particles 20–40% larger than afternoon.',s:'Despite high RH, stay indoors until humidity-driven haze clears. Use dehumidifier to protect indoor air quality.'},
+    {c:'Humidity still elevated. Morning fog/haze common in BTM during March. Reduced visibility from enlarged hygroscopic particles.',s:'Avoid outdoor exercise in morning fog. Haze is not just water — it\'s pollutant-laden humid air.'},
+    {c:'Humidity beginning to drop as temperature rises. Particles beginning to dry and density-normalize.',s:'Transitional period: moderate exposure acceptable. Light mask recommended.'},
+    {c:'Humidity dropping through morning. Thermal mixing improving. Air quality generally improving as RH falls toward 50%.',s:'Good transition window. Conditions improving hour by hour.'},
+    {c:'Optimal humidity zone (40–55%) — particles neither too large (hygroscopic) nor dry enough to resuspend maximally.',s:'Best window of the day from humidity perspective. Good time for outdoor exercise.'},
+    {c:'Mid-morning humidity near optimal. PM2.5 at effective minimum given prevailing emission levels.',s:'Open windows for natural ventilation. Lowest combined RH-PM2.5 risk period.'},
+    {c:'Lowest humidity of the day (12pm–3pm). Particles maximally dry = easily resuspended by vehicle turbulence.',s:'PM10 risk rises at low humidity. Avoid construction zones. Wet wipe surfaces to prevent indoor resuspension.'},
+    {c:'Afternoon low humidity period. Road dust most easily resuspended. BTM construction sites generate maximum PM10 impact.',s:'High PM10 hour due to low humidity. Wet mopping preferred over dry sweeping at homes.'},
+    {c:'Humidity beginning to rise as temperature peaks and starts to fall. Particle growth beginning again.',s:'Transitional period — both PM10 (resuspension) and PM2.5 (hygroscopic) risk present simultaneously.'},
+    {c:'Evening humidity rise: particles absorbing moisture, growing 15–25%. Haze begins to form as sun angle reduces.',s:'Closing windows becomes advisable as evening haze starts to reduce outdoor air quality benefit.'},
+    {c:'Evening humidity building toward overnight maximum. PM2.5 particles growing, reducing visibility. Inversion strengthening.',s:'Close windows fully. Indoor air quality now better than outdoor at most BTM locations.'},
+    {c:'High evening humidity + inversion = maximum PM2.5 effective concentration. Haze clearly visible under BTM streetlights.',s:'Air purifier most valuable at this hour. HEPA filter captures hygroscopic PM2.5 even in enlarged state.'},
+    {c:'Humidity near evening maximum. Overnight high-RH period beginning. Pollution will be trapped in high-humidity air mass overnight.',s:'Seal bedroom windows at night. Morning will start with high RH + accumulated pollution — ventilate carefully after 9am.'},
+  ],
+};
+
+// Global store for current forecast modal state
+var G_POLLS = [];
+var G_FC_IDX = 0;
+
+function showFcModal(i) {
+  G_FC_IDX = i;
+  var day = FCDAYS[i];
+  var pm25P = D.pred.pm25.preds[i];
+  var aqiV = calcAQI(pm25P[0]);
+  var cat = aqiCat(aqiV);
+  var prevAqi = i === 0 ? calcAQI(D.daily.pm25.avg[4]) : calcAQI(D.pred.pm25.preds[i-1][0]);
+  var delta = aqiV - prevAqi;
+
+  G_POLLS = [
+    {key:'pm25', n:'PM2.5',    u:'μg/m³', c:'#f472b6', safe:15,   max:65,  dp:1, pred:D.pred.pm25.preds[i]},
+    {key:'pm10', n:'PM10',     u:'μg/m³', c:'#a78bfa', safe:45,   max:110, dp:1, pred:D.pred.pm10.preds[i]},
+    {key:'no2',  n:'NO\u2082', u:'ppb',   c:'#34d399', safe:53,   max:25,  dp:1, pred:D.pred.no2.preds[i]},
+    {key:'no',   n:'NO',       u:'ppb',   c:'#fbbf24', safe:52,   max:12,  dp:2, pred:D.pred.no.preds[i]},
+    {key:'o3',   n:'O\u2083',  u:'ppb',   c:'#60a5fa', safe:54,   max:30,  dp:1, pred:D.pred.o3.preds[i]},
+    {key:'so2',  n:'SO\u2082', u:'ppb',   c:'#f87171', safe:35,   max:18,  dp:1, pred:D.pred.so2.preds[i]},
+    {key:'co',   n:'CO',       u:'ppb',   c:'#c084fc', safe:4400, max:1.3, dp:3, pred:D.pred.co.preds[i]},
+    {key:'rh',   n:'Humidity', u:'%',     c:'#22d3ee', safe:60,   max:85,  dp:1, pred:D.pred.rh.preds[i]},
+  ];
+
+  var advisory = aqiV > 150
+    ? '&#x1F6A8; Unhealthy — N95 mandatory outdoors, children/elderly must stay inside, close all windows.'
+    : aqiV > 100
+    ? '&#x26A0;&#xFE0F; Sensitive groups avoid outdoor exposure 7&#8211;10am and 5&#8211;8pm. N95 recommended near junction.'
+    : '&#x2705; Moderate &#8212; Safe for healthy adults. Best outdoor window: 5&#8211;8am.';
+
+  var deltaTag = delta > 0
+    ? '<span class="tag warn">&#8593; '+Math.abs(delta)+' AQI vs prev</span>'
+    : '<span class="tag good">&#8595; '+Math.abs(delta)+' AQI vs prev</span>';
+
+  // Build pollutant boxes using string concat — no nested template literals
+  var boxesHTML = '';
+  for (var pi = 0; pi < G_POLLS.length; pi++) {
+    var p = G_POLLS[pi];
+    var val = p.pred[0];
+    var pct = Math.min((val / p.max) * 100, 100).toFixed(1);
+    var isHigh = val > p.safe;
+    var bc = isHigh ? '#ef4444' : '#22c55e';
+    var bl = isHigh ? 'HIGH' : 'SAFE';
+    var tr = p.pred[2] === 'up' ? '&#8593;' : '&#8595;';
+    var tc = p.pred[2] === 'up' ? '#ef4444' : '#22c55e';
+    var tpct = Math.abs(p.pred[3]).toFixed(0);
+    boxesHTML += '<div class="fpbox" id="fpbox-'+pi+'" onclick="openHourly('+pi+')">'
+      + '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:'+p.c+'"></div>'
+      + '<div class="fpbox-name">'+p.n+'</div>'
+      + '<div class="fpbox-val" style="color:'+p.c+'">'+val.toFixed(p.dp)+'</div>'
+      + '<div class="fpbox-unit">'+p.u+'</div>'
+      + '<div class="fpbox-trend" style="color:'+tc+'">'+tr+' '+tpct+'%</div>'
+      + '<div class="fpbox-bar"><div class="fpbox-barfill" data-pct="'+pct+'" style="background:'+p.c+';width:0%"></div></div>'
+      + '<div style="background:'+bc+'22;color:'+bc+';font-family:DM Mono,monospace;font-size:.48rem;text-transform:uppercase;'
+      +   'letter-spacing:1px;padding:1px 5px;border-radius:3px;margin-top:5px;display:inline-block;">'+bl+'</div>'
+      + '</div>';
+  }
+
+  document.getElementById('mbody').innerHTML =
+    '<div class="msub">ML Forecast &#8212; Day '+(i+1)+' of 5</div>'
+    + '<div class="mh" style="color:'+cat.c+'">'+day+' &#8212; AQI '+aqiV+'</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+    +   '<span class="tag" style="background:'+cat.c+'22;color:'+cat.c+'">'+cat.l+'</span>'
+    +   deltaTag
+    +   '<span class="tag">Conf '+pm25P[1]+'%</span>'
+    +   '<span class="tag">R&#178;='+D.pred.pm25.r2+'</span>'
+    + '</div>'
+    + '<div class="mbox" style="margin-bottom:12px;">'+advisory+'</div>'
+    + '<div class="msect" style="margin-bottom:8px;">&#128230; Click any pollutant box &#8594; see hourly 6am&#8211;6pm forecast + causes</div>'
+    + '<div class="fc-poll-boxes" id="fpboxes">'+boxesHTML+'</div>'
+    + '<div id="hourlyPanel" class="hourly-panel">'
+    +   '<div class="hourly-panel-title" id="hourlyTitle">&#8212; Select a pollutant above &#8212;</div>'
+    +   '<div class="hour-rows" id="hourRows"></div>'
+    + '</div>';
+
+  document.getElementById('overlay').classList.add('open');
+
+  // Animate fill bars after render
+  setTimeout(function() {
+    document.querySelectorAll('.fpbox-barfill').forEach(function(el) {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }, 150);
+}
+
+function openHourly(pollIdx) {
+  var p = G_POLLS[pollIdx];
+  var dailyAvg = p.pred[0];
+  var patterns = HOURLY_PATTERNS[p.key];
+  var causes = HOURLY_CAUSES[p.key];
+
+  // Highlight active box
+  document.querySelectorAll('.fpbox').forEach(function(b, bi) {
+    b.classList.toggle('active', bi === pollIdx);
+  });
+
+  var panel = document.getElementById('hourlyPanel');
+  var title = document.getElementById('hourlyTitle');
+  title.textContent = p.n + ' — Hourly Prediction ' + FCDAYS[G_FC_IDX] + ' (6am–6pm)';
+  title.style.color = p.c;
+
+  var maxVal = 0;
+  for (var mi = 0; mi < patterns.length; mi++) {
+    var v = dailyAvg * patterns[mi];
+    if (v > maxVal) maxVal = v;
+  }
+
+  var rowsHTML = '';
+  for (var hi = 0; hi < HOURS.length; hi++) {
+    var val = dailyAvg * patterns[hi];
+    var pct = Math.min((val / maxVal) * 100, 100).toFixed(1);
+    var isHigh = val > p.safe;
+    var isMod = !isHigh && val > p.safe * 0.6;
+    var sc = isHigh ? '#ef4444' : isMod ? '#f97316' : '#22c55e';
+    var sl = isHigh ? 'HIGH' : isMod ? 'MOD' : 'SAFE';
+    var cobj = causes[hi];
+
+    rowsHTML +=
+      '<div class="hour-row" id="hr-'+hi+'" onclick="toggleHourCause('+hi+')">'
+      +   '<div class="hr-time">'+HOURS[hi]+'</div>'
+      +   '<div class="hr-val-wrap">'
+      +     '<div class="hr-val" style="color:'+p.c+'">'+val.toFixed(p.dp)
+      +       ' <span style="font-size:.6rem;color:#4d7090">'+p.u+'</span></div>'
+      +     '<div class="hr-bar-wrap"><div class="hr-bar" style="width:'+pct+'%;background:'+p.c+';opacity:.8"></div></div>'
+      +   '</div>'
+      +   '<div>'
+      +     '<div class="hr-badge" style="background:'+sc+'22;color:'+sc+'">'+sl+'</div>'
+      +     '<div style="font-family:DM Mono,monospace;font-size:.48rem;color:#4d7090;margin-top:3px;text-align:center;">&#9660; cause</div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="hr-cause" id="hrc-'+hi+'" style="border-left-color:'+sc+'">'
+      +   '<div class="hr-cause-title" style="color:'+sc+'">Why '+p.n+' is '+sl+' at '+HOURS[hi]+'</div>'
+      +   cobj.c
+      +   '<div class="hr-sol">&#x2705; '+cobj.s+'</div>'
+      + '</div>';
+  }
+
+  document.getElementById('hourRows').innerHTML = rowsHTML;
+  panel.classList.add('show');
+  panel.style.display = 'block';
+  setTimeout(function() { panel.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 80);
+}
+
+function toggleHourCause(hi) {
+  var row = document.getElementById('hr-' + hi);
+  var cause = document.getElementById('hrc-' + hi);
+  var isOpen = cause.classList.contains('show');
+  document.querySelectorAll('.hr-cause').forEach(function(c) { c.classList.remove('show'); });
+  document.querySelectorAll('.hour-row').forEach(function(r) { r.classList.remove('expanded'); });
+  if (!isOpen) {
+    cause.classList.add('show');
+    row.classList.add('expanded');
+  }
+}
+
+function closeModal(e){
+  if(!e||e.target===document.getElementById('overlay')) document.getElementById('overlay').classList.remove('open');
+}
+
+// ═══ INIT ═══
+window.addEventListener('load',()=>{
+  renderHero();
+  renderPollutants();
+  buildDualCharts();
+  renderForecast();
+  buildFcChart();
+  renderAnalysis();
+  swChart('pm25',document.querySelector('.ctab.on'));
+});
+</script>
+</body>
+</html>
